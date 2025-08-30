@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers/WagmiProvider";
-import { AuthProvider } from "./providers/AuthProvider";
 import { SupabaseProvider } from "./providers/SupabaseProvider";
 
 export const metadata: Metadata = {
@@ -18,11 +17,9 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         <SupabaseProvider>
-          <AuthProvider>
-            <Providers>
-              {children}
-            </Providers>
-          </AuthProvider>
+          <Providers>
+            {children}
+          </Providers>
         </SupabaseProvider>
       </body>
     </html>

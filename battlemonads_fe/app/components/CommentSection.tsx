@@ -207,7 +207,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ battleId }) => {
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
-                      {userProfile.avatar_url ? (
+                      {userProfile.avatar_url && userProfile.avatar_url !== '' ? (
                         <Image 
                           src={userProfile.avatar_url} 
                           alt={userProfile.username || 'User'} 

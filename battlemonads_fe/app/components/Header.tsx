@@ -114,13 +114,21 @@ export const Header: React.FC = () => {
               <div className="flex items-center gap-2">
                 <div className="bg-[#121619] rounded-lg px-3 py-2">
                   <div className="flex items-center gap-2">
-                    <Image 
-                      src={user.user_metadata?.avatar_url || ''} 
-                      alt="Profile" 
-                      width={32}
-                      height={32}
-                      className="w-8 h-8 rounded-full"
-                    />
+                    {user.user_metadata?.avatar_url ? (
+                      <Image 
+                        src={user.user_metadata.avatar_url} 
+                        alt="Profile" 
+                        width={32}
+                        height={32}
+                        className="w-8 h-8 rounded-full"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-[#5AD8CC] flex items-center justify-center">
+                        <span className="text-xs font-bold text-black">
+                          {user.email?.slice(0, 2).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
                     <div>
                       <p className="text-sm font-medium text-white">{user.user_metadata?.full_name || user.email}</p>
                       <p className="text-xs text-[#8B9299]">Discord</p>
