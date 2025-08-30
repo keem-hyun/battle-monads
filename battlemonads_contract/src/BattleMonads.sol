@@ -11,7 +11,7 @@ interface IPriceFeeds {
 contract BattleMonads {
     uint256 public constant MIN_BET = 0.01 ether;  // 0.01 MON
     uint256 public constant MAX_BET = 1 ether;     // 1 MON
-    uint256 public constant BATTLE_DURATION = 1 hours; // 1시간
+    uint256 public constant BATTLE_DURATION = 12 hours; // 12시간
     uint256 public constant DEFAULT_HP = 100;
 
     enum MonsterType { ETH, BTC }
