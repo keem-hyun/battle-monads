@@ -146,7 +146,12 @@ export const Header: React.FC = () => {
               </div>
             ) : (
               <Button 
-                onClick={() => supabase.auth.signInWithOAuth({ provider: 'discord' })}
+                onClick={() => supabase.auth.signInWithOAuth({ 
+                  provider: 'discord',
+                  options: {
+                    redirectTo: `${window.location.origin}/auth/callback`
+                  }
+                })}
                 size="sm"
                 variant="secondary"
                 className="flex items-center gap-2"
