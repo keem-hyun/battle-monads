@@ -114,8 +114,9 @@ forge verify-contract <CONTRACT_ADDRESS> PriceFeeds \
 
 ### Monad 테스트넷
 - **PriceFeeds Contract**: [`0x2DE6e6e7f8CA732137775DF4Cff65571D47Db3Fd`](https://testnet.monadscan.com/address/0x2DE6e6e7f8CA732137775DF4Cff65571D47Db3Fd#code)
-- **BattleMonads Contract**: [`0x69366b194C707105186f2e889cAB84306c716E60`](https://testnet.monadscan.com/address/0x69366b194c707105186f2e889cab84306c716e60#code)
-- **배포 트랜잭션**: [MonadScan에서 확인](https://testnet.monadscan.com/address/0x69366b194c707105186f2e889cab84306c716e60#code)
+- **BattleMonads Contract (v2)**: [`0x79d6c0F8f1c92F98C4Ef3B76F0229406c8C3A63d`](https://testnet.monadscan.com/address/0x79d6c0F8f1c92F98C4Ef3B76F0229406c8C3A63d#code)
+- **BattleMonads Contract (v1)**: [`0x69366b194C707105186f2e889cAB84306c716E60`](https://testnet.monadscan.com/address/0x69366b194c707105186f2e889cab84306c716e60#code) *(Deprecated)*
+- **배포 트랜잭션**: [MonadScan에서 확인](https://testnet.monadscan.com/address/0x79d6c0F8f1c92F98C4Ef3B76F0229406c8C3A63d#code)
 
 ### Sepolia 테스트넷
 - **PriceFeeds Contract**: [`0x2DE6e6e7f8CA732137775DF4Cff65571D47Db3Fd`](https://sepolia.etherscan.io/address/0x2DE6e6e7f8CA732137775DF4Cff65571D47Db3Fd#code)
@@ -128,14 +129,26 @@ forge verify-contract <CONTRACT_ADDRESS> PriceFeeds \
 - **댓글 & 공격**: 베팅한 사용자만 댓글 작성 가능, "attack" 포함 시 자동 공격
 - **실시간 가격**: 몬스터 생성 시 Chainlink 가격 데이터로 birth price 설정
 - **자동 정산**: 배틀 종료 시 승자 풀이 전체 베팅 금액 분배
-- **배틀 시간**: 1시간 제한, HP 0 또는 시간 만료 시 자동 종료
+- **배틀 시간**: 12시간 제한, HP 0 또는 시간 만료 시 자동 종료
+
+### 게임 상수 (컨트랙트 설정)
+```solidity
+uint256 public constant MIN_BET = 0.01 ether;    // 최소 베팅 금액: 0.01 MON
+uint256 public constant MAX_BET = 1 ether;       // 최대 베팅 금액: 1 MON
+uint256 public constant BATTLE_DURATION = 12 hours; // 배틀 지속 시간: 12시간
+uint256 public constant DEFAULT_HP = 100;        // 몬스터 기본 HP: 100
+```
 
 ### 게임 플로우
-1. **배틀 생성**: 관리자가 ETH vs BTC 몬스터 배틀 생성
+1. **배틀 생성**: 관리자가 ETH vs BTC 몬스터 배틀 생성 (자동으로 첫 배틀 ID: 1 생성)
 2. **베팅**: 사용자가 원하는 몬스터에 베팅 (0.01-1 MON)
-3. **댓글/공격**: 베팅한 사용자만 댓글 작성, "attack" 포함 시 반대편 공격
-4. **배틀 종료**: HP 0 또는 1시간 경과 시 자동 종료
+3. **댓글/공격**: 베팅한 사용자만 댓글 작성, "attack" 포함 시 반대편 공격 (-1 HP)
+4. **배틀 종료**: HP 0 또는 12시간 경과 시 자동 종료
 5. **정산**: 승자 풀이 베팅 비율에 따라 보상 분배
+
+### 컨트랙트 버전 히스토리
+- **v1** (`0x6936...60`): 1시간 배틀 기간 - *Deprecated*
+- **v2** (`0x79d6...3d`): 12시간 배틀 기간 - **현재 사용**
 
 ## Chainlink Data Feeds
 
@@ -187,8 +200,83 @@ anvil
 anvil --fork-url $SEPOLIA_RPC_URL
 ```
 
+## 주요 함수 사용법
+
+### BattleMonads 컨트랙트
+
+```solidity
+// 배틀에 베팅 (0.01-1 MON)
+function bet(uint256 battleId, MonsterType side) external payable
+
+// 댓글 작성 (베팅한 사용자만 가능)
+function addComment(uint256 battleId, string memory content) external
+
+// 배틀 정보 조회
+function getBattle(uint256 battleId) external view returns (Battle memory)
+
+// 몬스터 정보 조회
+function getMonster(uint256 monsterId) external view returns (Monster memory)
+
+// 사용자 베팅 정보 조회
+function getUserBet(uint256 battleId, address user) external view returns (uint256 ethBet, uint256 btcBet)
+
+// 사용자 댓글 권한 확인
+function canUserComment(uint256 battleId, address user) external view returns (bool)
+```
+
+### Cast 명령어 예시
+
+```bash
+# 현재 배틀 정보 조회
+cast call 0x79d6c0F8f1c92F98C4Ef3B76F0229406c8C3A63d "getBattle(uint256)" 1 --rpc-url https://testnet-rpc.monad.xyz
+
+# ETH 몬스터에 0.1 MON 베팅
+cast send 0x79d6c0F8f1c92F98C4Ef3B76F0229406c8C3A63d "bet(uint256,uint8)" 1 0 --value 0.1ether --private-key $PRIVATE_KEY --rpc-url https://testnet-rpc.monad.xyz
+
+# 댓글 작성 (공격 포함)
+cast send 0x79d6c0F8f1c92F98C4Ef3B76F0229406c8C3A63d "addComment(uint256,string)" 1 "attack the enemy monster!" --private-key $PRIVATE_KEY --rpc-url https://testnet-rpc.monad.xyz
+```
+
+## 프론트엔드 연동
+
+현재 BattleMonads 게임은 Next.js 기반 웹 앱과 연동되어 있습니다:
+
+- **저장소**: `/battlemonads_fe/`
+- **주요 기술**: Next.js 15, Wagmi v2, Supabase, Discord OAuth
+- **실시간 기능**: 가격 업데이트, 남은 시간 표시, 댓글 시스템
+
+### 주요 컴포넌트
+- `BattleArena`: 실시간 배틀 현황 및 12시간 타이머
+- `BettingPanel`: 베팅 인터페이스
+- `CommentSection`: Discord 프로필 연동 댓글 시스템
+- `PriceTicker`: Chainlink 가격 데이터 표시
+
+## 트러블슈팅
+
+### 일반적인 문제
+
+1. **베팅 실패 (insufficient balance)**
+   - 지갑에 최소 0.01 MON + 가스비 확인
+
+2. **댓글 작성 불가**
+   - 해당 배틀에 베팅했는지 확인
+   - Discord 로그인 및 지갑 연결 확인
+
+3. **트랜잭션 실패 (higher priority)**
+   - 가스비를 높여서 재시도: `--gas-price 200000000000`
+
+### 네트워크 이슈
+```bash
+# Monad 테스트넷 연결 확인
+cast block-number --rpc-url https://testnet-rpc.monad.xyz
+
+# 지갑 잔액 확인
+cast balance YOUR_ADDRESS --rpc-url https://testnet-rpc.monad.xyz
+```
+
 ## 문서
 
 - [Foundry 문서](https://book.getfoundry.sh/)
 - [Chainlink Data Feeds](https://docs.chain.link/data-feeds)
 - [Monad 문서](https://docs.monad.xyz/)
+- [BattleMonads 게임 플레이](https://battlemonads.vercel.app/)
