@@ -1,107 +1,89 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSupabase } from '../providers/SupabaseProvider';
+import { useAccount } from 'wagmi';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
-
-interface Comment {
-  id: string;
-  user: string;
-  userAvatar?: string;
-  userName?: string;
-  message: string;
-  timestamp: Date;
-  type: 'comment' | 'attack';
-  target?: 'ETH' | 'BTC';
-  damage?: number;
-}
+import { useBattleMonads } from '../hooks/useBattleMonads';
 
 interface CommentSectionProps {
-  battleId?: string;
-  onSubmitComment: (message: string, type: 'comment' | 'attack', target?: 'ETH' | 'BTC') => void;
-  userAddress?: string;
+  battleId: number;
 }
 
-export const CommentSection: React.FC<CommentSectionProps> = ({
-  battleId,
-  onSubmitComment,
-  userAddress,
-}) => {
-  const { user } = useSupabase();
-  const [newComment, setNewComment] = useState('');
-  const [selectedTarget, setSelectedTarget] = useState<'ETH' | 'BTC' | null>(null);
-  
-  // Mock comments data with Discord profiles
-  const [comments] = useState<Comment[]>([
-    {
-      id: '1',
-      user: '0x1234...5678',
-      userName: 'CryptoKnight',
-      userAvatar: 'https://cdn.discordapp.com/avatars/123456789/avatar1.png',
-      message: 'ETH monster looking strong! 🦄',
-      timestamp: new Date(Date.now() - 300000),
-      type: 'comment',
-    },
-    {
-      id: '2',
-      user: '0x9876...4321',
-      userName: 'DragonSlayer',
-      userAvatar: 'https://cdn.discordapp.com/avatars/987654321/avatar2.png',
-      message: 'attack',
-      timestamp: new Date(Date.now() - 240000),
-      type: 'attack',
-      target: 'BTC',
-      damage: 15,
-    },
-    {
-      id: '3',
-      user: '0xabcd...efgh',
-      userName: 'MonsterTamer',
-      userAvatar: 'https://cdn.discordapp.com/avatars/111222333/avatar3.png',
-      message: 'BTC is recovering! Weather bonus helping 🌧️',
-      timestamp: new Date(Date.now() - 180000),
-      type: 'comment',
-    },
-    {
-      id: '4',
-      user: '0x5555...9999',
-      userName: 'BattleMaster',
-      userAvatar: 'https://cdn.discordapp.com/avatars/555666777/avatar4.png',
-      message: 'attack',
-      timestamp: new Date(Date.now() - 120000),
-      type: 'attack',
-      target: 'ETH',
-      damage: 22,
-    },
-    {
-      id: '5',
-      user: '0x1111...2222',
-      userName: 'PriceWatcher',
-      userAvatar: 'https://cdn.discordapp.com/avatars/888999000/avatar5.png',
-      message: 'This battle is intense! Price movements affecting HP in real-time',
-      timestamp: new Date(Date.now() - 60000),
-      type: 'comment',
-    },
-  ]);
+export const CommentSection: React.FC<CommentSectionProps> = ({ battleId }) => {
+  const { user, getUserProfile } = useSupabase();
+  const { address } = useAccount();
+  const { 
+    useBattleComments, 
+    useCanUserComment, 
+    addComment, 
+    isPending, 
+    MonsterType,
+    useTransactionStatus 
+  } = useBattleMonads();
 
-  const handleSubmit = () => {
-    if (!newComment.trim()) return;
-    
-    const isAttack = newComment.toLowerCase() === 'attack';
-    
-    if (isAttack && selectedTarget) {
-      onSubmitComment(newComment, 'attack', selectedTarget);
-    } else if (!isAttack) {
-      onSubmitComment(newComment, 'comment');
+  const { data: comments, isLoading, refetch } = useBattleComments(battleId);
+  const { data: canComment } = useCanUserComment(battleId, address || '');
+  const { data: txReceipt, isSuccess: txSuccess } = useTransactionStatus();
+
+  const [newComment, setNewComment] = useState('');
+  const [userProfiles, setUserProfiles] = useState<Record<string, { username?: string; avatar_url?: string }>>({});
+
+  // 트랜잭션이 성공하면 댓글 새로고침
+  useEffect(() => {
+    if (txSuccess && txReceipt) {
+      console.log('Transaction successful, refreshing comments...');
+      setTimeout(() => refetch(), 2000);
     }
+  }, [txSuccess, txReceipt, refetch]);
+
+  // 댓글이 로드되면 각 유저의 프로필 정보 가져오기
+  useEffect(() => {
+    const loadUserProfiles = async () => {
+      if (!Array.isArray(comments) || comments.length === 0) return;
+
+      const uniqueUsers = [...new Set(comments.map(comment => comment?.user).filter(Boolean))];
+      const profiles: Record<string, { username?: string; avatar_url?: string }> = {};
+
+      await Promise.all(
+        uniqueUsers.map(async (userAddress) => {
+          if (userAddress && typeof userAddress === 'string') {
+            const profile = await getUserProfile(userAddress);
+            if (profile) {
+              profiles[userAddress] = profile;
+            }
+          }
+        })
+      );
+
+      setUserProfiles(profiles);
+    };
+
+    loadUserProfiles();
+  }, [comments, getUserProfile]);
+  
+  const handleSubmit = async () => {
+    if (!newComment.trim() || !address) return;
     
-    setNewComment('');
-    setSelectedTarget(null);
+    try {
+      await addComment(battleId, newComment);
+      setNewComment('');
+      
+      // 댓글 추가 후 3초 뒤에 refetch (트랜잭션이 완료될 시간)
+      setTimeout(() => {
+        refetch();
+      }, 3000);
+      
+    } catch (error) {
+      console.error('Failed to add comment:', error);
+      alert('Failed to add comment. Please try again.');
+    }
   };
 
-  const formatTime = (date: Date) => {
+  const formatTime = (timestamp: bigint) => {
+    const date = new Date(Number(timestamp) * 1000);
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / 60000);
     
@@ -115,15 +97,51 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
     return `${diffInDays}d ago`;
   };
 
-  const isAttackCommand = newComment.toLowerCase() === 'attack';
+  if (isLoading) {
+    return (
+      <Card>
+        <div className="animate-pulse">
+          <div className="h-8 bg-[#121619] rounded mb-4"></div>
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-20 bg-[#121619] rounded"></div>
+            ))}
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  // 데이터가 배열인지 확인하고 안전하게 처리
+  console.log('Comments data:', comments, 'Type:', typeof comments);
+  
+  // comments가 배열이면 객체 형태의 댓글들을 처리하고 최신순 정렬
+  let commentList: any[] = [];
+  if (Array.isArray(comments)) {
+    commentList = comments
+      .filter(comment => comment && typeof comment === 'object' && comment.id)
+      .sort((a, b) => Number(b.timestamp) - Number(a.timestamp)); // 최신순 정렬 (timestamp 내림차순)
+  }
+  
+  console.log('Filtered comment list (latest first):', commentList);
 
   return (
     <Card>
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-bold text-white">Battle Comments</h3>
-        <Badge variant="info" size="sm">
-          {comments.length} comments
-        </Badge>
+        <div className="flex gap-2 items-center">
+          <Button 
+            onClick={() => refetch()} 
+            variant="secondary" 
+            size="sm"
+            disabled={isLoading}
+          >
+            🔄 {isLoading ? 'Loading...' : 'Refresh'}
+          </Button>
+          <Badge variant="info" size="sm">
+            {commentList.length} comments
+          </Badge>
+        </div>
       </div>
       
       {/* Comment Input */}
@@ -133,46 +151,32 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
             type="text"
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
-            placeholder='Comment or type "attack" to damage monsters...'
+            placeholder={canComment ? 'Comment or include "attack" to damage opponent...' : 'Must bet to comment...'}
             className="flex-1 bg-[#121619] border border-[#2A3238] rounded-lg px-4 py-3 text-white placeholder-[#5A6269] focus:outline-none focus:border-[#5AD8CC] text-base"
             onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
+            disabled={!canComment || !user || !address}
           />
-          <Button onClick={handleSubmit} disabled={!newComment.trim()} size="lg">
-            {isAttackCommand ? 'Attack' : 'Send'}
+          <Button 
+            onClick={handleSubmit} 
+            disabled={!newComment.trim() || isPending || !canComment || !user || !address} 
+            size="lg"
+          >
+            {isPending ? 'Sending...' : 'Send'}
           </Button>
         </div>
-        
-        {/* Attack Target Selection */}
-        {isAttackCommand && (
-          <div className="flex gap-3 items-center p-4 bg-[#121619] rounded-lg border border-[#2A3238]">
-            <span className="text-sm text-[#8B9299] font-medium">Select target:</span>
-            <button
-              onClick={() => setSelectedTarget('ETH')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                selectedTarget === 'ETH' 
-                  ? 'bg-[#627EEA]/20 text-[#627EEA] border border-[#627EEA]'
-                  : 'bg-[#1a1f24] text-[#8B9299] border border-[#2A3238] hover:border-[#627EEA]/50'
-              }`}
-            >
-              🦄 ETH Monster
-            </button>
-            <button
-              onClick={() => setSelectedTarget('BTC')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                selectedTarget === 'BTC' 
-                  ? 'bg-[#F7931A]/20 text-[#F7931A] border border-[#F7931A]'
-                  : 'bg-[#1a1f24] text-[#8B9299] border border-[#2A3238] hover:border-[#F7931A]/50'
-              }`}
-            >
-              🦁 BTC Monster
-            </button>
-          </div>
-        )}
         
         {!user && (
           <div className="mt-4 p-4 bg-[#F87171]/10 border border-[#F87171]/30 rounded-lg">
             <p className="text-sm text-[#F87171] font-medium">
-              💡 Login with Discord to participate in battle comments and attacks
+              💡 Login with Discord and connect wallet to participate in battle comments
+            </p>
+          </div>
+        )}
+
+        {user && address && !canComment && (
+          <div className="mt-4 p-4 bg-[#F7931A]/10 border border-[#F7931A]/30 rounded-lg">
+            <p className="text-sm text-[#F7931A] font-medium">
+              💡 Place a bet first to unlock commenting
             </p>
           </div>
         )}
@@ -180,60 +184,76 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
       
       {/* Comments List */}
       <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-        {comments.map((comment) => (
-          <div key={comment.id} className="bg-[#121619] rounded-lg p-4 border border-[#2A3238]">
-            <div className="flex justify-between items-start mb-3">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  {comment.userAvatar && (
-                    <img 
-                      src={comment.userAvatar} 
-                      alt={comment.userName || 'User'} 
-                      className="w-8 h-8 rounded-full"
-                    />
-                  )}
-                  <div>
-                    {comment.userName && (
-                      <p className="text-sm font-medium text-[#5AD8CC]">{comment.userName}</p>
-                    )}
-                    <p className="text-xs font-mono text-[#8B9299]">
-                      {comment.user.slice(0, 6)}...{comment.user.slice(-4)}
-                    </p>
-                  </div>
-                </div>
-                {comment.type === 'attack' && (
-                  <Badge 
-                    variant={comment.target === 'ETH' ? 'eth' : 'btc'} 
-                    size="sm"
-                  >
-                    ⚔️ Attack {comment.target}
-                  </Badge>
-                )}
-              </div>
-              <span className="text-xs text-[#8B9299] font-medium">
-                {formatTime(comment.timestamp)}
-              </span>
-            </div>
-            
-            {comment.type === 'attack' ? (
-              <div className="flex items-center gap-3">
-                <span className="text-base text-[#F87171]">⚔️ {comment.message}</span>
-                {comment.damage && (
-                  <Badge variant="error" size="sm">
-                    -{comment.damage} HP
-                  </Badge>
-                )}
-              </div>
-            ) : (
-              <p className="text-base text-[#B8BFC6] leading-relaxed">{comment.message}</p>
-            )}
+        {commentList.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-[#8B9299]">No comments yet. Be the first to comment!</p>
           </div>
-        ))}
+        ) : (
+          commentList.map((comment, index) => {
+            // 객체 형태로 직접 접근
+            const { id, battleId, user, content, timestamp, isAttack, attackTarget } = comment;
+            const userProfile = userProfiles[user] || {};
+            
+            return (
+              <div key={String(id)} className="bg-[#121619] rounded-lg p-4 border border-[#2A3238]">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      {userProfile.avatar_url ? (
+                        <img 
+                          src={userProfile.avatar_url} 
+                          alt={userProfile.username || 'User'} 
+                          className="w-8 h-8 rounded-full"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-[#5AD8CC] flex items-center justify-center">
+                          <span className="text-xs font-bold text-black">
+                            {String(user).slice(2, 4).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                      <div>
+                        {userProfile.username && (
+                          <p className="text-sm font-medium text-[#5AD8CC]">{userProfile.username}</p>
+                        )}
+                        <p className="text-xs font-mono text-[#8B9299]">
+                          {String(user).slice(0, 6)}...{String(user).slice(-4)}
+                        </p>
+                      </div>
+                    </div>
+                    {isAttack && (
+                      <Badge 
+                        variant={attackTarget === MonsterType.ETH ? 'eth' : 'btc'} 
+                        size="sm"
+                      >
+                        ⚔️ Attack {attackTarget === MonsterType.ETH ? 'ETH' : 'BTC'}
+                      </Badge>
+                    )}
+                  </div>
+                  <span className="text-xs text-[#8B9299] font-medium">
+                    {formatTime(timestamp)}
+                  </span>
+                </div>
+                
+                {isAttack ? (
+                  <div className="flex items-center gap-3">
+                    <span className="text-base text-[#F87171]">⚔️ {content}</span>
+                    <Badge variant="error" size="sm">
+                      -1 HP
+                    </Badge>
+                  </div>
+                ) : (
+                  <p className="text-base text-[#B8BFC6] leading-relaxed">{content}</p>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
       
       <div className="mt-6 pt-4 border-t border-[#2A3238]">
         <div className="flex justify-between items-center text-sm text-[#8B9299]">
-          <span>💡 Type "attack" and select target to damage monsters</span>
+          <span>💡 Include "attack" in your comment to damage opponent (-1 HP)</span>
           <span>⚡ Comments update in real-time</span>
         </div>
       </div>

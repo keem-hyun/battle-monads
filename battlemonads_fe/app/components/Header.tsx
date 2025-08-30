@@ -17,11 +17,18 @@ export const Header: React.FC = () => {
   const { data: balance } = useBalance({ address });
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
-  const { supabase, user, loading } = useSupabase();
+  const { supabase, user, loading, linkWalletAddress } = useSupabase();
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Discord 로그인하고 지갑이 연결되어 있으면 자동으로 매핑
+  useEffect(() => {
+    if (user && address && isConnected) {
+      linkWalletAddress(address);
+    }
+  }, [user, address, isConnected, linkWalletAddress]);
 
   const isCorrectNetwork = chainId === monadTestnet.id;
   const networkName = isCorrectNetwork ? 'Monad Testnet' : `Chain ID: ${chainId}`;

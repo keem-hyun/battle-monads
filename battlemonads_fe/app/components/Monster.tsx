@@ -4,29 +4,42 @@ import React from 'react';
 import { Card } from './ui/Card';
 import { Badge } from './ui/Badge';
 import { ProgressBar } from './ui/ProgressBar';
+import { useBattleMonads } from '../hooks/useBattleMonads';
 
 interface MonsterProps {
-  id: string;
-  type: 'ETH' | 'BTC';
-  currentHP: number;
-  maxHP: number;
-  birthPrice: number;
-  currentPrice: number;
-  owner: string;
+  monsterId: number;
+  battleId?: number;
   isInBattle?: boolean;
 }
 
 export const Monster: React.FC<MonsterProps> = ({
-  id,
-  type,
-  currentHP,
-  maxHP,
-  birthPrice,
-  currentPrice,
-  owner,
+  monsterId,
+  battleId,
   isInBattle = false,
 }) => {
-  const priceChange = ((currentPrice - birthPrice) / birthPrice) * 100;
+  const { useMonster, formatMonAmount, MonsterType } = useBattleMonads();
+  const { data: monster, isLoading } = useMonster(monsterId);
+
+  if (isLoading || !monster) {
+    return (
+      <Card className="animate-pulse">
+        <div className="h-48 bg-[#121619] rounded-lg"></div>
+      </Card>
+    );
+  }
+
+  const [id, monsterType, birthPrice, currentHP, maxHP, createTime, exists] = monster;
+  
+  if (!exists) {
+    return null;
+  }
+
+  const type = monsterType === MonsterType.ETH ? 'ETH' : 'BTC';
+  const birthPriceUsd = Number(birthPrice) / 1e8; // Chainlink price feeds have 8 decimals
+  
+  // 현재 가격은 실시간 price feed에서 가져와야 함 (임시로 birth price 사용)
+  const currentPrice = birthPriceUsd;
+  const priceChange = 0; // 실제 구현에서는 현재 가격과 birth price 비교
   const isPositive = priceChange >= 0;
   
   const monsterEmoji = type === 'ETH' ? '🦄' : '🦁';
@@ -42,7 +55,7 @@ export const Monster: React.FC<MonsterProps> = ({
               <h3 className="text-xl font-bold text-white">{type} Monster</h3>
               <Badge variant={variant} size="sm">{type}</Badge>
             </div>
-            <p className="text-xs text-[#8B9299] mt-1">#{id.slice(0, 8)}</p>
+            <p className="text-xs text-[#8B9299] mt-1">#{String(id).padStart(3, '0')}</p>
           </div>
         </div>
         {isInBattle && (
@@ -53,8 +66,8 @@ export const Monster: React.FC<MonsterProps> = ({
       <div className="space-y-4">
         <div>
           <ProgressBar
-            value={currentHP}
-            max={maxHP}
+            value={Number(currentHP)}
+            max={Number(maxHP)}
             variant={variant}
             showLabel
             label="HP"
@@ -66,7 +79,7 @@ export const Monster: React.FC<MonsterProps> = ({
           <div className="bg-[#121619] rounded-lg p-3">
             <p className="text-xs text-[#8B9299] mb-1">Birth Price</p>
             <p className="text-lg font-semibold text-white">
-              ${birthPrice.toLocaleString()}
+              ${birthPriceUsd.toLocaleString()}
             </p>
           </div>
           
@@ -89,9 +102,9 @@ export const Monster: React.FC<MonsterProps> = ({
         </div>
         
         <div className="pt-3 border-t border-[#2A3238]">
-          <p className="text-xs text-[#8B9299]">Owner</p>
-          <p className="text-sm text-[#5AD8CC] font-mono">
-            {owner.slice(0, 6)}...{owner.slice(-4)}
+          <p className="text-xs text-[#8B9299]">Created</p>
+          <p className="text-sm text-white">
+            {new Date(Number(createTime) * 1000).toLocaleString()}
           </p>
         </div>
       </div>

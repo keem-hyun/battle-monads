@@ -4,47 +4,62 @@ import React, { useState } from 'react';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
+import { useBattleMonads } from '../hooks/useBattleMonads';
+import { useAccount, useBalance, useSwitchChain } from 'wagmi';
+import { formatEther } from 'viem';
+import { monadTestnet } from '../config/wagmi';
 
 interface BettingPanelProps {
-  battleId: string;
-  userBalance: number;
-  userBets: {
-    eth: number;
-    btc: number;
-  };
-  onPlaceBet: (type: 'ETH' | 'BTC', amount: number) => void;
-  onAttack: (target: 'ETH' | 'BTC') => void;
-  canAttack: boolean;
+  battleId: number;
 }
 
-export const BettingPanel: React.FC<BettingPanelProps> = ({
-  battleId,
-  userBalance,
-  userBets,
-  onPlaceBet,
-  onAttack,
-  canAttack,
-}) => {
-  const [selectedMonster, setSelectedMonster] = useState<'ETH' | 'BTC' | null>(null);
+export const BettingPanel: React.FC<BettingPanelProps> = ({ battleId }) => {
+  const { address, chainId } = useAccount();
+  const { data: balance } = useBalance({ address });
+  const { switchChain } = useSwitchChain();
+  const { 
+    bet, 
+    useUserBets, 
+    isPending, 
+    MonsterType,
+    formatMonAmount 
+  } = useBattleMonads();
+
+  const { data: userBets } = useUserBets(battleId, address || '');
+
+  const [selectedMonster, setSelectedMonster] = useState<typeof MonsterType[keyof typeof MonsterType] | null>(null);
   const [betAmount, setBetAmount] = useState('');
-  const [attackComment, setAttackComment] = useState('');
   
-  const handleBet = () => {
-    if (selectedMonster && betAmount) {
-      onPlaceBet(selectedMonster, parseFloat(betAmount));
-      setBetAmount('');
-      setSelectedMonster(null);
+  const handleBet = async () => {
+    if (selectedMonster !== null && betAmount && address) {
+      try {
+        // Check if we're on the correct network
+        if (chainId !== monadTestnet.id) {
+          await switchChain({ chainId: monadTestnet.id });
+          return; // Exit and let user retry after network switch
+        }
+        
+        // 베팅 금액 검증 (0.01 ~ 1 MON)
+        const amount = parseFloat(betAmount);
+        if (amount < 0.01 || amount > 1) {
+          alert('Bet amount must be between 0.01 and 1 MON');
+          return;
+        }
+        
+        await bet(battleId, selectedMonster, betAmount);
+        setBetAmount('');
+        setSelectedMonster(null);
+      } catch (error) {
+        console.error('Bet failed:', error);
+        alert('Bet failed. Please try again.');
+      }
     }
   };
   
-  const handleAttack = (target: 'ETH' | 'BTC') => {
-    if (attackComment === 'attack') {
-      onAttack(target);
-      setAttackComment('');
-    }
-  };
   
-  const totalBets = userBets.eth + userBets.btc;
+  const ethBet = userBets ? formatMonAmount(userBets[0]) : '0';
+  const btcBet = userBets ? formatMonAmount(userBets[1]) : '0';
+  const totalBets = parseFloat(ethBet) + parseFloat(btcBet);
   
   return (
     <Card className="w-full">
@@ -55,23 +70,23 @@ export const BettingPanel: React.FC<BettingPanelProps> = ({
           <div className="flex justify-between items-center mb-3">
             <span className="text-sm text-[#8B9299]">Your Balance</span>
             <span className="text-lg font-bold text-[#5AD8CC]">
-              {userBalance.toLocaleString()} MON
+              {balance ? parseFloat(formatEther(balance.value)).toFixed(4) : '0'} MON
             </span>
           </div>
           
           {totalBets > 0 && (
             <div className="pt-3 border-t border-[#2A3238] space-y-2">
               <p className="text-xs text-[#8B9299]">Your Active Bets</p>
-              {userBets.eth > 0 && (
+              {parseFloat(ethBet) > 0 && (
                 <div className="flex justify-between">
                   <Badge variant="eth">ETH Monster</Badge>
-                  <span className="text-sm text-white">{userBets.eth} MON</span>
+                  <span className="text-sm text-white">{parseFloat(ethBet).toFixed(4)} MON</span>
                 </div>
               )}
-              {userBets.btc > 0 && (
+              {parseFloat(btcBet) > 0 && (
                 <div className="flex justify-between">
                   <Badge variant="btc">BTC Monster</Badge>
-                  <span className="text-sm text-white">{userBets.btc} MON</span>
+                  <span className="text-sm text-white">{parseFloat(btcBet).toFixed(4)} MON</span>
                 </div>
               )}
             </div>
@@ -82,10 +97,10 @@ export const BettingPanel: React.FC<BettingPanelProps> = ({
           <p className="text-sm text-[#8B9299] mb-2">Place Your Bet</p>
           <div className="grid grid-cols-2 gap-2 mb-3">
             <button
-              onClick={() => setSelectedMonster('ETH')}
+              onClick={() => setSelectedMonster(MonsterType.ETH)}
               className={`
                 p-3 rounded-lg border transition-all
-                ${selectedMonster === 'ETH' 
+                ${selectedMonster === MonsterType.ETH 
                   ? 'bg-[#627EEA]/20 border-[#627EEA] text-[#627EEA]' 
                   : 'bg-[#121619] border-[#2A3238] text-[#8B9299] hover:border-[#627EEA]/50'
                 }
@@ -94,10 +109,10 @@ export const BettingPanel: React.FC<BettingPanelProps> = ({
               🦄 ETH Monster
             </button>
             <button
-              onClick={() => setSelectedMonster('BTC')}
+              onClick={() => setSelectedMonster(MonsterType.BTC)}
               className={`
                 p-3 rounded-lg border transition-all
-                ${selectedMonster === 'BTC' 
+                ${selectedMonster === MonsterType.BTC 
                   ? 'bg-[#F7931A]/20 border-[#F7931A] text-[#F7931A]' 
                   : 'bg-[#121619] border-[#2A3238] text-[#8B9299] hover:border-[#F7931A]/50'
                 }
@@ -107,60 +122,27 @@ export const BettingPanel: React.FC<BettingPanelProps> = ({
             </button>
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-2 mb-2">
             <input
               type="number"
               value={betAmount}
               onChange={(e) => setBetAmount(e.target.value)}
-              placeholder="Enter amount"
+              placeholder="0.01 - 1.0 MON"
+              min="0.01"
+              max="1.0"
+              step="0.01"
               className="flex-1 bg-[#121619] border border-[#2A3238] rounded-lg px-3 py-2 text-white placeholder-[#5A6269] focus:outline-none focus:border-[#5AD8CC]"
             />
             <Button
               onClick={handleBet}
-              disabled={!selectedMonster || !betAmount || parseFloat(betAmount) <= 0}
+              disabled={selectedMonster === null || !betAmount || parseFloat(betAmount) < 0.01 || parseFloat(betAmount) > 1 || isPending || !address}
             >
-              Place Bet
+              {isPending ? 'Betting...' : 'Place Bet'}
             </Button>
           </div>
+          <p className="text-xs text-[#8B9299] mb-4">Minimum: 0.01 MON • Maximum: 1 MON</p>
         </div>
         
-        {canAttack && (
-          <div>
-            <p className="text-sm text-[#8B9299] mb-2">Attack Command</p>
-            <div className="bg-[#121619] rounded-lg p-3 mb-3">
-              <p className="text-xs text-[#5AD8CC] mb-1">💡 Type "attack" to damage the enemy monster</p>
-              <p className="text-xs text-[#8B9299]">Damage based on your bet amount (1% of bet, max 50)</p>
-            </div>
-            
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={attackComment}
-                onChange={(e) => setAttackComment(e.target.value)}
-                placeholder='Type "attack"'
-                className="flex-1 bg-[#121619] border border-[#2A3238] rounded-lg px-3 py-2 text-white placeholder-[#5A6269] focus:outline-none focus:border-[#5AD8CC]"
-              />
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => handleAttack('ETH')}
-                  variant="danger"
-                  size="sm"
-                  disabled={attackComment !== 'attack' || userBets.btc === 0}
-                >
-                  ⚔️ ETH
-                </Button>
-                <Button
-                  onClick={() => handleAttack('BTC')}
-                  variant="danger"
-                  size="sm"
-                  disabled={attackComment !== 'attack' || userBets.eth === 0}
-                >
-                  ⚔️ BTC
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </Card>
   );
