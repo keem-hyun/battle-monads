@@ -3,78 +3,32 @@
 import React, { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { usePriceFeeds } from './hooks/usePriceFeeds';
+import { useBattleMonads } from './hooks/useBattleMonads';
 import { Header } from './components/Header';
 import { BattleArena } from './components/BattleArena';
 import { BettingPanel } from './components/BettingPanel';
 import { PriceTicker } from './components/PriceTicker';
-import { Monster } from './components/Monster';
 import { CommentSection } from './components/CommentSection';
 import { Card } from './components/ui/Card';
 import { Button } from './components/ui/Button';
-import { Badge } from './components/ui/Badge';
 
 export default function Home() {
   const { address } = useAccount();
   const { prices, loading: pricesLoading } = usePriceFeeds();
-  const [userBalance, setUserBalance] = useState(10000);
-  const [activeBattle, setActiveBattle] = useState(true);
+  const { useBattle } = useBattleMonads();
+  
+  // 현재는 battleId 1번을 고정으로 사용 (실제로는 활성 배틀 목록에서 선택)
+  const currentBattleId = 1;
+  const { data: battle } = useBattle(currentBattleId);
+  
   const [lastUpdate, setLastUpdate] = useState(new Date());
-  const [userMonsters, setUserMonsters] = useState([
-    {
-      id: '0x123456',
-      type: 'ETH' as const,
-      currentHP: 85,
-      maxHP: 100,
-      birthPrice: 2400,
-      currentPrice: prices.find(p => p.symbol === 'ETH')?.price || 2520,
-      owner: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
-    },
-    {
-      id: '0x789abc',
-      type: 'BTC' as const,
-      currentHP: 92,
-      maxHP: 100,
-      birthPrice: 64000,
-      currentPrice: prices.find(p => p.symbol === 'BTC')?.price || 65500,
-      owner: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
-    },
-  ]);
+  const [mounted, setMounted] = useState(false);
   
-  const mockBattleData = {
-    battleId: '0xbattle123',
-    ethMonster: {
-      id: '0xeth456',
-      currentHP: 75,
-      maxHP: 100,
-      birthPrice: 2450,
-      currentPrice: prices.find(p => p.symbol === 'ETH')?.price || 2520,
-      owner: '0x123...abc',
-    },
-    btcMonster: {
-      id: '0xbtc789',
-      currentHP: 82,
-      maxHP: 100,
-      birthPrice: 65000,
-      currentPrice: prices.find(p => p.symbol === 'BTC')?.price || 65500,
-      owner: '0x456...def',
-    },
-    ethBettingPool: 5000,
-    btcBettingPool: 3500,
-    timeRemaining: 14400,
-    weatherBonus: {
-      type: 'RAINY' as const,
-      ethBonus: 10,
-      btcBonus: 3,
-    },
-  };
+  const activeBattle = battle && battle[5]; // isActive 필드
   
-  // 실제 가격 데이터 사용
-  const priceData = prices;
-  
-  const [userBets, setUserBets] = useState({
-    eth: 0,
-    btc: 0,
-  });
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   
   useEffect(() => {
     const interval = setInterval(() => {
@@ -83,42 +37,6 @@ export default function Home() {
     
     return () => clearInterval(interval);
   }, []);
-
-  // 가격 데이터가 업데이트될 때마다 몬스터 현재 가격 업데이트
-  useEffect(() => {
-    if (prices.length > 0) {
-      setUserMonsters(prev => prev.map(monster => ({
-        ...monster,
-        currentPrice: prices.find(p => p.symbol === monster.type)?.price || monster.currentPrice,
-      })));
-    }
-  }, [prices]);
-  
-  const handlePlaceBet = (type: 'ETH' | 'BTC', amount: number) => {
-    if (amount <= userBalance) {
-      setUserBalance(prev => prev - amount);
-      setUserBets(prev => ({
-        ...prev,
-        [type.toLowerCase()]: prev[type.toLowerCase() as 'eth' | 'btc'] + amount,
-      }));
-    }
-  };
-  
-  const handleAttack = (target: 'ETH' | 'BTC') => {
-    console.log(`Attacking ${target} monster!`);
-  };
-  
-  const handleCreateMonster = (type: 'ETH' | 'BTC') => {
-    console.log(`Creating ${type} monster...`);
-  };
-  
-  const handleSubmitComment = (message: string, type: 'comment' | 'attack', target?: 'ETH' | 'BTC') => {
-    console.log('Comment submitted:', { message, type, target });
-    // In a real app, this would send the comment to the blockchain or backend
-    if (type === 'attack' && target) {
-      console.log(`Attacking ${target} monster with message: ${message}`);
-    }
-  };
   
   return (
     <div className="min-h-screen bg-[#121619]">
@@ -137,21 +55,14 @@ export default function Home() {
           
           {activeBattle ? (
             <>
-              <BattleArena {...mockBattleData} />
+              <BattleArena battleId={currentBattleId} />
               
               <div className="grid lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
-                  <PriceTicker prices={priceData} lastUpdate={lastUpdate} />
+                  <PriceTicker prices={prices} lastUpdate={lastUpdate} />
                 </div>
                 <div>
-                  <BettingPanel
-                    battleId={mockBattleData.battleId}
-                    userBalance={userBalance}
-                    userBets={userBets}
-                    onPlaceBet={handlePlaceBet}
-                    onAttack={handleAttack}
-                    canAttack={userBets.eth > 0 || userBets.btc > 0}
-                  />
+                  <BettingPanel battleId={currentBattleId} />
                 </div>
               </div>
             </>
@@ -161,39 +72,22 @@ export default function Home() {
                 <div className="text-6xl mb-4">🎮</div>
                 <h3 className="text-2xl font-bold text-white mb-2">No Active Battle</h3>
                 <p className="text-[#8B9299] mb-6">
-                  Create or wait for monsters to start battling!
+                  Waiting for battle to be created by admin...
                 </p>
-                <div className="flex justify-center gap-4">
-                  <Button onClick={() => handleCreateMonster('ETH')} variant="secondary">
-                    🦄 Create ETH Monster
-                  </Button>
-                  <Button onClick={() => handleCreateMonster('BTC')} variant="secondary">
-                    🦁 Create BTC Monster
-                  </Button>
-                </div>
+                {mounted && address && (
+                  <p className="text-sm text-[#5AD8CC]">
+                    Connected: {address.slice(0, 6)}...{address.slice(-4)}
+                  </p>
+                )}
               </Card>
               
-              <div>
-                <h3 className="text-xl font-bold text-white mb-4">Your Monsters</h3>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {userMonsters.map((monster) => (
-                    <Monster
-                      key={monster.id}
-                      {...monster}
-                    />
-                  ))}
-                </div>
-              </div>
-              
-              <PriceTicker prices={priceData} lastUpdate={lastUpdate} />
+              <PriceTicker prices={prices} lastUpdate={lastUpdate} />
             </div>
           )}
           
-          <CommentSection
-            battleId={activeBattle ? mockBattleData.battleId : undefined}
-            onSubmitComment={handleSubmitComment}
-            userAddress={address}
-          />
+          {activeBattle && (
+            <CommentSection battleId={currentBattleId} />
+          )}
           
           <Card className="bg-gradient-to-r from-[#1e2429] to-[#232a30]">
             <div className="flex justify-between items-center">
