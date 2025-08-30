@@ -1,4 +1,10 @@
 {
+  "lib/chainlink": {
+    "tag": {
+      "name": "v2.27.0",
+      "rev": "19f03054061e9bc2b540156fe00ebb8a0bf7ef4d"
+    }
+  },
   "lib/forge-std": {
     "tag": {
       "name": "v1.10.0",
