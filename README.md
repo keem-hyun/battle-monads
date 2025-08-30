@@ -193,9 +193,9 @@ monad-blitz-seoul/
 - **[`battlemonads_contract/README.md`](./battlemonads_contract/README.md)** - 스마트 컨트랙트 문서
 - **[`battlemonads_fe/README.md`](./battlemonads_fe/README.md)** - 프론트엔드 문서
 
-## 🏅 Monad Blitz Seoul 2024
+## 🏅 Monad Blitz Seoul 2025
 
-이 프로젝트는 **Monad Blitz Seoul 2024** 해커톤 출품작입니다.
+이 프로젝트는 **Monad Blitz Seoul 2025** 해커톤 프로덕트입니다.
 
 ### 핵심 가치 제안
 - **Monad의 고성능 활용**: 10,000+ TPS로 실시간 게임 구현
