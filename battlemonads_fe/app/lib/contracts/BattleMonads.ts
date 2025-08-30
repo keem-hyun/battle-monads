@@ -221,7 +221,7 @@ export const BATTLE_MONADS_ABI = [
 ] as const;
 
 // Monad 테스트넷에 배포된 BattleMonads 컨트랙트 주소
-export const BATTLE_MONADS_ADDRESS = '0x69366b194C707105186f2e889cAB84306c716E60';
+export const BATTLE_MONADS_ADDRESS = '0x79d6c0F8f1c92F98C4Ef3B76F0229406c8C3A63d';
 
 // MonsterType enum
 export enum MonsterType {

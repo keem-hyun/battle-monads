@@ -94,7 +94,7 @@ export const BettingPanel: React.FC<BettingPanelProps> = ({ battleId }) => {
         </div>
         
         <div>
-          <p className="text-sm text-[#8B9299] mb-2">Place Your Bet</p>
+          <p className="text-sm text-[#8B9299] mb-2">Place Your Bet To Your Side</p>
           <div className="grid grid-cols-2 gap-2 mb-3">
             <button
               onClick={() => setSelectedMonster(MonsterType.ETH)}

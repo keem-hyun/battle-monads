@@ -4,12 +4,14 @@ interface BadgeProps {
   children: React.ReactNode;
   variant?: 'default' | 'success' | 'warning' | 'error' | 'info' | 'eth' | 'btc';
   size?: 'sm' | 'md';
+  className?: string;
 }
 
 export const Badge: React.FC<BadgeProps> = ({
   children,
   variant = 'default',
   size = 'md',
+  className = '',
 }) => {
   const variants = {
     default: 'bg-[#232a30] text-[#B8BFC6]',
@@ -35,6 +37,7 @@ export const Badge: React.FC<BadgeProps> = ({
         rounded-full
         ${variants[variant]}
         ${sizes[size]}
+        ${className}
       `}
     >
       {children}

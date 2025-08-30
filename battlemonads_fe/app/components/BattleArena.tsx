@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Monster } from './Monster';
 import { Card } from './ui/Card';
 import { Badge } from './ui/Badge';
@@ -13,13 +13,52 @@ interface BattleArenaProps {
 export const BattleArena: React.FC<BattleArenaProps> = ({ battleId }) => {
   const { useBattle, formatMonAmount } = useBattleMonads();
   const { data: battle, isLoading } = useBattle(battleId);
+  const [currentTime, setCurrentTime] = useState(Math.floor(Date.now() / 1000));
+
+  // 매초마다 시간 업데이트
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(Math.floor(Date.now() / 1000));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   const formatTime = (endTime: number) => {
-    const now = Math.floor(Date.now() / 1000);
-    const remaining = Math.max(0, endTime - now);
-    const hours = Math.floor(remaining / 3600);
+    const remaining = Math.max(0, endTime - currentTime);
+    
+    // 콘솔에 남은 시간 정보 출력
+    console.log('Battle Time Info:', {
+      endTime,
+      currentTime,
+      remaining,
+      remainingFormatted: {
+        days: Math.floor(remaining / 86400),
+        hours: Math.floor((remaining % 86400) / 3600),
+        minutes: Math.floor((remaining % 3600) / 60),
+        seconds: remaining % 60
+      },
+      battleId,
+      isActive,
+      isSettled
+    });
+    
+    if (remaining === 0) return 'Battle Ended';
+    
+    const days = Math.floor(remaining / 86400);
+    const hours = Math.floor((remaining % 86400) / 3600);
     const minutes = Math.floor((remaining % 3600) / 60);
-    return `${hours}h ${minutes}m`;
+    const seconds = remaining % 60;
+    
+    if (days > 0) {
+      return `${days}d ${hours}h ${minutes}m`;
+    } else if (hours > 0) {
+      return `${hours}h ${minutes}m ${seconds}s`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    } else {
+      return `${seconds}s`;
+    }
   };
 
   if (isLoading || !battle) {
@@ -56,12 +95,19 @@ export const BattleArena: React.FC<BattleArenaProps> = ({ battleId }) => {
       <Card className="text-center">
         <div className="flex justify-between items-center mb-4">
           <Badge variant={isActive ? "error" : "warning"} size="md">
-            {isActive ? "LIVE BATTLE" : isSettled ? "BATTLE ENDED" : "BATTLE STARTING"}
+            {isActive ? "🔴 LIVE BATTLE" : isSettled ? "✅ BATTLE ENDED" : "🟡 BATTLE STARTING"}
           </Badge>
           <div className="text-sm text-[#B8BFC6]">Battle #{String(battleId).padStart(3, '0')}</div>
-          <Badge variant="info" size="md">
-            {isActive ? `${formatTime(Number(endTime))} remaining` : 
-             isSettled ? "Settled" : "Starting Soon"}
+          <Badge variant={isActive ? "error" : "info"} size="md" className="min-w-[140px] text-center">
+            {isActive ? (
+              <span className="font-mono">
+                ⏰ {formatTime(Number(endTime))}
+              </span>
+            ) : isSettled ? (
+              "✅ Settled"
+            ) : (
+              "🔜 Starting Soon"
+            )}
           </Badge>
         </div>
         
@@ -98,6 +144,19 @@ export const BattleArena: React.FC<BattleArenaProps> = ({ battleId }) => {
               <p className="text-2xl font-bold text-[#5AD8CC]">
                 {totalPool.toFixed(4)} MON
               </p>
+              {isActive && Number(endTime) > currentTime && (
+                <div className="mt-3">
+                  <div className="w-full bg-[#2A3238] rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-[#F87171] to-[#5AD8CC] transition-all duration-1000"
+                      style={{ 
+                        width: `${Math.max(0, Math.min(100, ((Number(endTime) - currentTime) / 3600) * 100))}%` 
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-[#8B9299] mt-1">Time Remaining</p>
+                </div>
+              )}
               {isSettled && (
                 <p className="text-sm text-[#5AD8CC] mt-2">
                   Winner: {winner === 0 ? 'ETH 🦄' : 'BTC 🦁'}
