@@ -234,9 +234,9 @@ contract HPRecoveryAutomation is AutomationCompatibleInterface {
 
 ### 3단계: 커뮤니티 베팅
 ```
-- Charlie: ETH 몬스터에 100 MONAD 베팅
-- David: BTC 몬스터에 150 MONAD 베팅
-- Eve: ETH 몬스터에 200 MONAD 베팅
+- Charlie: ETH 몬스터에 100 MON 베팅
+- David: BTC 몬스터에 150 MON 베팅
+- Eve: ETH 몬스터에 200 MON 베팅
 ```
 
 ### 4단계: 실시간 체력 변동
@@ -267,10 +267,10 @@ Charlie: "attack" 댓글로 BTC 몬스터 공격 → -50 damage
 - ETH 몬스터: 1,120 HP (승리)
 - BTC 몬스터: 890 HP
 
-총 베팅 풀: 450 MONAD
+총 베팅 풀: 450 MON
 ETH 지지자들에게 비례 분배:
-- Charlie: 150 MONAD (원금 100 + 이익 50)
-- Eve: 300 MONAD (원금 200 + 이익 100)
+- Charlie: 150 MON (원금 100 + 이익 50)
+- Eve: 300 MON (원금 200 + 이익 100)
 ```
 
 ## 핵심 특징
@@ -288,4 +288,4 @@ ETH 지지자들에게 비례 분배:
 - **날씨 데이터**: Chainlink Data Streams
 - **자동화**: Chainlink Automation
 - **스마트 컨트랙트**: Solidity
-- **토큰**: MONAD (네이티브 토큰)
+- **토큰**: MON (게임 토큰)
