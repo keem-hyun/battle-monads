@@ -1,16 +1,21 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useAccount } from 'wagmi';
+import { usePriceFeeds } from './hooks/usePriceFeeds';
 import { Header } from './components/Header';
 import { BattleArena } from './components/BattleArena';
 import { BettingPanel } from './components/BettingPanel';
 import { PriceTicker } from './components/PriceTicker';
 import { Monster } from './components/Monster';
+import { CommentSection } from './components/CommentSection';
 import { Card } from './components/ui/Card';
 import { Button } from './components/ui/Button';
 import { Badge } from './components/ui/Badge';
 
 export default function Home() {
+  const { address } = useAccount();
+  const { prices, loading: pricesLoading } = usePriceFeeds();
   const [userBalance, setUserBalance] = useState(10000);
   const [activeBattle, setActiveBattle] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date());
@@ -18,19 +23,19 @@ export default function Home() {
     {
       id: '0x123456',
       type: 'ETH' as const,
-      currentHP: 850,
-      maxHP: 1000,
+      currentHP: 85,
+      maxHP: 100,
       birthPrice: 2400,
-      currentPrice: 2520,
+      currentPrice: prices.find(p => p.symbol === 'ETH')?.price || 2520,
       owner: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
     },
     {
       id: '0x789abc',
       type: 'BTC' as const,
-      currentHP: 920,
-      maxHP: 1000,
+      currentHP: 92,
+      maxHP: 100,
       birthPrice: 64000,
-      currentPrice: 65500,
+      currentPrice: prices.find(p => p.symbol === 'BTC')?.price || 65500,
       owner: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
     },
   ]);
@@ -39,18 +44,18 @@ export default function Home() {
     battleId: '0xbattle123',
     ethMonster: {
       id: '0xeth456',
-      currentHP: 750,
-      maxHP: 1000,
+      currentHP: 75,
+      maxHP: 100,
       birthPrice: 2450,
-      currentPrice: 2520,
+      currentPrice: prices.find(p => p.symbol === 'ETH')?.price || 2520,
       owner: '0x123...abc',
     },
     btcMonster: {
       id: '0xbtc789',
-      currentHP: 820,
-      maxHP: 1000,
+      currentHP: 82,
+      maxHP: 100,
       birthPrice: 65000,
-      currentPrice: 65500,
+      currentPrice: prices.find(p => p.symbol === 'BTC')?.price || 65500,
       owner: '0x456...def',
     },
     ethBettingPool: 5000,
@@ -63,20 +68,8 @@ export default function Home() {
     },
   };
   
-  const [priceData, setPriceData] = useState([
-    {
-      symbol: 'ETH' as const,
-      price: 2520,
-      change24h: 120,
-      change24hPercent: 5.0,
-    },
-    {
-      symbol: 'BTC' as const,
-      price: 65500,
-      change24h: 1500,
-      change24hPercent: 2.34,
-    },
-  ]);
+  // 실제 가격 데이터 사용
+  const priceData = prices;
   
   const [userBets, setUserBets] = useState({
     eth: 0,
@@ -90,6 +83,16 @@ export default function Home() {
     
     return () => clearInterval(interval);
   }, []);
+
+  // 가격 데이터가 업데이트될 때마다 몬스터 현재 가격 업데이트
+  useEffect(() => {
+    if (prices.length > 0) {
+      setUserMonsters(prev => prev.map(monster => ({
+        ...monster,
+        currentPrice: prices.find(p => p.symbol === monster.type)?.price || monster.currentPrice,
+      })));
+    }
+  }, [prices]);
   
   const handlePlaceBet = (type: 'ETH' | 'BTC', amount: number) => {
     if (amount <= userBalance) {
@@ -107,6 +110,14 @@ export default function Home() {
   
   const handleCreateMonster = (type: 'ETH' | 'BTC') => {
     console.log(`Creating ${type} monster...`);
+  };
+  
+  const handleSubmitComment = (message: string, type: 'comment' | 'attack', target?: 'ETH' | 'BTC') => {
+    console.log('Comment submitted:', { message, type, target });
+    // In a real app, this would send the comment to the blockchain or backend
+    if (type === 'attack' && target) {
+      console.log(`Attacking ${target} monster with message: ${message}`);
+    }
   };
   
   return (
@@ -177,6 +188,12 @@ export default function Home() {
               <PriceTicker prices={priceData} lastUpdate={lastUpdate} />
             </div>
           )}
+          
+          <CommentSection
+            battleId={activeBattle ? mockBattleData.battleId : undefined}
+            onSubmitComment={handleSubmitComment}
+            userAddress={address}
+          />
           
           <Card className="bg-gradient-to-r from-[#1e2429] to-[#232a30]">
             <div className="flex justify-between items-center">

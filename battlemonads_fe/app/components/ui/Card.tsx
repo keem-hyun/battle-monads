@@ -25,7 +25,7 @@ export const Card: React.FC<CardProps> = ({
         bg-[#1e2429] 
         border border-[#2A3238] 
         rounded-xl 
-        p-6 
+        p-4 
         transition-all 
         duration-300
         ${glow ? glowStyles[variant] : ''}

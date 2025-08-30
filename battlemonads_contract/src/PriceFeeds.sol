@@ -8,13 +8,13 @@ contract PriceFeeds {
     AggregatorV3Interface internal ethUsdPriceFeed;
 
     /**
-     * Network: Sepolia
-     * BTC/USD: 0x1b44F3514812d835EB1BDB0acB33d3fA3351Ee43
-     * ETH/USD: 0x694AA1769357215DE4FAC081bf1f309aDC325306
+     * Network: monad testnet
+     * BTC/USD: 0x2Cd9D7E85494F68F5aF08EF96d6FD5e8F71B4d31
+     * ETH/USD: 0x0c76859E85727683Eeba0C70Bc2e0F5781337818
      */
     constructor() {
-        btcUsdPriceFeed = AggregatorV3Interface(0x1b44F3514812d835EB1BDB0acB33d3fA3351Ee43);
-        ethUsdPriceFeed = AggregatorV3Interface(0x694AA1769357215DE4FAC081bf1f309aDC325306);
+        btcUsdPriceFeed = AggregatorV3Interface(0x2Cd9D7E85494F68F5aF08EF96d6FD5e8F71B4d31);
+        ethUsdPriceFeed = AggregatorV3Interface(0x0c76859E85727683Eeba0C70Bc2e0F5781337818);
     }
 
     function getBTCPrice() public view returns (int256) {

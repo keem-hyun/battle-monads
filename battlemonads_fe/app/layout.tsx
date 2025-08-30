@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers/WagmiProvider";
+import { AuthProvider } from "./providers/AuthProvider";
+import { SupabaseProvider } from "./providers/SupabaseProvider";
 
 export const metadata: Metadata = {
   title: "Battle Monads - Price-based Monster Battles",
@@ -15,9 +17,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        <Providers>
-          {children}
-        </Providers>
+        <SupabaseProvider>
+          <AuthProvider>
+            <Providers>
+              {children}
+            </Providers>
+          </AuthProvider>
+        </SupabaseProvider>
       </body>
     </html>
   );

@@ -68,6 +68,12 @@ source .env && forge script script/GetPrices.s.sol:GetPrices --fork-url $SEPOLIA
 ### 배포
 
 ```bash
+# Monad 테스트넷 배포
+forge script script/DeployPriceFeedsMonad.s.sol:DeployPriceFeedsMonad \
+  --rpc-url monad \
+  --private-key $PRIVATE_KEY \
+  --broadcast
+
 # Sepolia 테스트넷 배포
 forge script script/DeployPriceFeeds.s.sol:DeployPriceFeeds \
   --rpc-url $SEPOLIA_RPC_URL \
@@ -79,6 +85,15 @@ forge script script/DeployPriceFeeds.s.sol:DeployPriceFeeds \
 ### 컨트랙트 검증
 
 ```bash
+# Monad 테스트넷 검증 (Sourcify)
+forge verify-contract \
+  --rpc-url https://testnet-rpc.monad.xyz \
+  --verifier sourcify \
+  --verifier-url 'https://sourcify-api-monad.blockvision.org' \
+  <CONTRACT_ADDRESS> \
+  src/PriceFeeds.sol:PriceFeeds
+
+# Sepolia 테스트넷 검증
 forge verify-contract <CONTRACT_ADDRESS> PriceFeeds \
   --chain sepolia \
   --etherscan-api-key $ETHERSCAN_API_KEY
@@ -86,13 +101,23 @@ forge verify-contract <CONTRACT_ADDRESS> PriceFeeds \
 
 ## 배포된 컨트랙트
 
+### Monad 테스트넷
+- **PriceFeeds Contract**: [`0x2DE6e6e7f8CA732137775DF4Cff65571D47Db3Fd`](https://testnet.monadscan.com/address/0x2DE6e6e7f8CA732137775DF4Cff65571D47Db3Fd#code)
+- **배포 트랜잭션**: [MonadScan에서 확인](https://testnet.monadscan.com/address/0x2DE6e6e7f8CA732137775DF4Cff65571D47Db3Fd#code)
+
 ### Sepolia 테스트넷
 - **PriceFeeds Contract**: [`0x2DE6e6e7f8CA732137775DF4Cff65571D47Db3Fd`](https://sepolia.etherscan.io/address/0x2DE6e6e7f8CA732137775DF4Cff65571D47Db3Fd#code)
 - **배포 트랜잭션**: [Etherscan에서 확인](https://sepolia.etherscan.io/address/0x2DE6e6e7f8CA732137775DF4Cff65571D47Db3Fd#code)
 
 ## Chainlink Data Feeds
 
-현재 연동된 가격 피드 (Sepolia 테스트넷):
+### Monad 테스트넷
+| Feed | Address | Decimals |
+|------|---------|----------|
+| BTC/USD | 0x2Cd9D7E85494F68F5aF08EF96d6FD5e8F71B4d31 | 8 |
+| ETH/USD | 0x0c76859E85727683Eeba0C70Bc2e0F5781337818 | 8 |
+
+### Sepolia 테스트넷
 
 | Feed | Address | Decimals |
 |------|---------|----------|
