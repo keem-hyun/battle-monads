@@ -1,103 +1,203 @@
-import Image from "next/image";
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { Header } from './components/Header';
+import { BattleArena } from './components/BattleArena';
+import { BettingPanel } from './components/BettingPanel';
+import { PriceTicker } from './components/PriceTicker';
+import { Monster } from './components/Monster';
+import { Card } from './components/ui/Card';
+import { Button } from './components/ui/Button';
+import { Badge } from './components/ui/Badge';
 
 export default function Home() {
+  const [walletAddress, setWalletAddress] = useState<string>('');
+  const [userBalance, setUserBalance] = useState(10000);
+  const [activeBattle, setActiveBattle] = useState(true);
+  const [userMonsters, setUserMonsters] = useState([
+    {
+      id: '0x123456',
+      type: 'ETH' as const,
+      currentHP: 850,
+      maxHP: 1000,
+      birthPrice: 2400,
+      currentPrice: 2520,
+      owner: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+    },
+    {
+      id: '0x789abc',
+      type: 'BTC' as const,
+      currentHP: 920,
+      maxHP: 1000,
+      birthPrice: 64000,
+      currentPrice: 65500,
+      owner: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+    },
+  ]);
+  
+  const mockBattleData = {
+    battleId: '0xbattle123',
+    ethMonster: {
+      id: '0xeth456',
+      currentHP: 750,
+      maxHP: 1000,
+      birthPrice: 2450,
+      currentPrice: 2520,
+      owner: '0x123...abc',
+    },
+    btcMonster: {
+      id: '0xbtc789',
+      currentHP: 820,
+      maxHP: 1000,
+      birthPrice: 65000,
+      currentPrice: 65500,
+      owner: '0x456...def',
+    },
+    ethBettingPool: 5000,
+    btcBettingPool: 3500,
+    timeRemaining: 14400,
+    weatherBonus: {
+      type: 'RAINY' as const,
+      ethBonus: 10,
+      btcBonus: 3,
+    },
+  };
+  
+  const [priceData, setPriceData] = useState([
+    {
+      symbol: 'ETH' as const,
+      price: 2520,
+      change24h: 120,
+      change24hPercent: 5.0,
+    },
+    {
+      symbol: 'BTC' as const,
+      price: 65500,
+      change24h: 1500,
+      change24hPercent: 2.34,
+    },
+  ]);
+  
+  const [userBets, setUserBets] = useState({
+    eth: 0,
+    btc: 0,
+  });
+  
+  const handleConnect = () => {
+    setWalletAddress('0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb');
+  };
+  
+  const handlePlaceBet = (type: 'ETH' | 'BTC', amount: number) => {
+    if (amount <= userBalance) {
+      setUserBalance(prev => prev - amount);
+      setUserBets(prev => ({
+        ...prev,
+        [type.toLowerCase()]: prev[type.toLowerCase() as 'eth' | 'btc'] + amount,
+      }));
+    }
+  };
+  
+  const handleAttack = (target: 'ETH' | 'BTC') => {
+    console.log(`Attacking ${target} monster!`);
+  };
+  
+  const handleCreateMonster = (type: 'ETH' | 'BTC') => {
+    console.log(`Creating ${type} monster...`);
+  };
+  
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen bg-[#121619]">
+      <Header walletAddress={walletAddress} onConnect={handleConnect} />
+      
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="space-y-8">
+          <div className="text-center">
+            <h2 className="text-4xl font-bold text-white mb-2">
+              ⚔️ Battle Monads ⚔️
+            </h2>
+            <p className="text-[#8B9299]">
+              Real-time price-based monster battles powered by Chainlink Data Feeds
+            </p>
+          </div>
+          
+          {activeBattle ? (
+            <>
+              <BattleArena {...mockBattleData} />
+              
+              <div className="grid lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <PriceTicker prices={priceData} lastUpdate={new Date()} />
+                </div>
+                <div>
+                  <BettingPanel
+                    battleId={mockBattleData.battleId}
+                    userBalance={userBalance}
+                    userBets={userBets}
+                    onPlaceBet={handlePlaceBet}
+                    onAttack={handleAttack}
+                    canAttack={userBets.eth > 0 || userBets.btc > 0}
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-6">
+              <Card className="text-center py-12">
+                <div className="text-6xl mb-4">🎮</div>
+                <h3 className="text-2xl font-bold text-white mb-2">No Active Battle</h3>
+                <p className="text-[#8B9299] mb-6">
+                  Create or wait for monsters to start battling!
+                </p>
+                <div className="flex justify-center gap-4">
+                  <Button onClick={() => handleCreateMonster('ETH')} variant="secondary">
+                    🦄 Create ETH Monster
+                  </Button>
+                  <Button onClick={() => handleCreateMonster('BTC')} variant="secondary">
+                    🦁 Create BTC Monster
+                  </Button>
+                </div>
+              </Card>
+              
+              <div>
+                <h3 className="text-xl font-bold text-white mb-4">Your Monsters</h3>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {userMonsters.map((monster) => (
+                    <Monster
+                      key={monster.id}
+                      {...monster}
+                    />
+                  ))}
+                </div>
+              </div>
+              
+              <PriceTicker prices={priceData} lastUpdate={new Date()} />
+            </div>
+          )}
+          
+          <Card className="bg-gradient-to-r from-[#1e2429] to-[#232a30]">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-bold text-white mb-1">Game Stats</h3>
+                <p className="text-sm text-[#8B9299]">Powered by Monad & Chainlink</p>
+              </div>
+              <div className="flex gap-6">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-[#5AD8CC]">24</p>
+                  <p className="text-xs text-[#8B9299]">Active Battles</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-[#5AD8CC]">156</p>
+                  <p className="text-xs text-[#8B9299]">Total Monsters</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-[#5AD8CC]">89.5K</p>
+                  <p className="text-xs text-[#8B9299]">MON Volume</p>
+                </div>
+              </div>
+            </div>
+          </Card>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
