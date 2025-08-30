@@ -13,6 +13,3 @@ monad = "${MONAD_RPC_URL}"
 [etherscan]
 sepolia = { key = "${ETHERSCAN_API_KEY}" }
 
-# Monad Testnet Configuration
-eth-rpc-url="https://testnet-rpc.monad.xyz"
-chain_id = 10143

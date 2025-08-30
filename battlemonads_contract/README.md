@@ -7,11 +7,16 @@ Monad 블록체인 기반 예측 시장 배틀 게임 스마트 컨트랙트
 ```
 src/
 ├── PriceFeeds.sol          # Chainlink 가격 피드 연동
+├── BattleMonads.sol        # 메인 배틀 게임 컨트랙트
+├── MonsterTypes.sol        # 몬스터 타입 정의
+├── MonsterStorage.sol      # 몬스터 데이터 구조
+├── BattleStorage.sol       # 배틀 데이터 구조
 ├── interfaces/
 │   └── AggregatorV3Interface.sol  # Chainlink 인터페이스
 script/
 ├── GetPrices.s.sol         # 가격 조회 스크립트
-├── DeployPriceFeeds.s.sol  # 배포 스크립트
+├── DeployPriceFeeds.s.sol  # PriceFeeds 배포 스크립트
+├── DeployBattleMoands.s.sol # BattleMonads 배포 스크립트
 test/
 ├── PriceFeeds.t.sol        # 가격 피드 테스트
 ```
@@ -68,8 +73,14 @@ source .env && forge script script/GetPrices.s.sol:GetPrices --fork-url $SEPOLIA
 ### 배포
 
 ```bash
-# Monad 테스트넷 배포
+# Monad 테스트넷 - PriceFeeds 배포
 forge script script/DeployPriceFeedsMonad.s.sol:DeployPriceFeedsMonad \
+  --rpc-url monad \
+  --private-key $PRIVATE_KEY \
+  --broadcast
+
+# Monad 테스트넷 - BattleMonads 배포
+forge script script/DeployBattleMoands.s.sol:DeployBattleMonads \
   --rpc-url monad \
   --private-key $PRIVATE_KEY \
   --broadcast
@@ -103,11 +114,28 @@ forge verify-contract <CONTRACT_ADDRESS> PriceFeeds \
 
 ### Monad 테스트넷
 - **PriceFeeds Contract**: [`0x2DE6e6e7f8CA732137775DF4Cff65571D47Db3Fd`](https://testnet.monadscan.com/address/0x2DE6e6e7f8CA732137775DF4Cff65571D47Db3Fd#code)
-- **배포 트랜잭션**: [MonadScan에서 확인](https://testnet.monadscan.com/address/0x2DE6e6e7f8CA732137775DF4Cff65571D47Db3Fd#code)
+- **BattleMonads Contract**: [`0x69366b194C707105186f2e889cAB84306c716E60`](https://testnet.monadscan.com/address/0x69366b194c707105186f2e889cab84306c716e60#code)
+- **배포 트랜잭션**: [MonadScan에서 확인](https://testnet.monadscan.com/address/0x69366b194c707105186f2e889cab84306c716e60#code)
 
 ### Sepolia 테스트넷
 - **PriceFeeds Contract**: [`0x2DE6e6e7f8CA732137775DF4Cff65571D47Db3Fd`](https://sepolia.etherscan.io/address/0x2DE6e6e7f8CA732137775DF4Cff65571D47Db3Fd#code)
 - **배포 트랜잭션**: [Etherscan에서 확인](https://sepolia.etherscan.io/address/0x2DE6e6e7f8CA732137775DF4Cff65571D47Db3Fd#code)
+
+## 게임 기능
+
+### BattleMonads 컨트랙트 주요 기능
+- **베팅 시스템**: 0.01 ~ 1 MON 범위에서 ETH/BTC 선택 베팅
+- **댓글 & 공격**: 베팅한 사용자만 댓글 작성 가능, "attack" 포함 시 자동 공격
+- **실시간 가격**: 몬스터 생성 시 Chainlink 가격 데이터로 birth price 설정
+- **자동 정산**: 배틀 종료 시 승자 풀이 전체 베팅 금액 분배
+- **배틀 시간**: 1시간 제한, HP 0 또는 시간 만료 시 자동 종료
+
+### 게임 플로우
+1. **배틀 생성**: 관리자가 ETH vs BTC 몬스터 배틀 생성
+2. **베팅**: 사용자가 원하는 몬스터에 베팅 (0.01-1 MON)
+3. **댓글/공격**: 베팅한 사용자만 댓글 작성, "attack" 포함 시 반대편 공격
+4. **배틀 종료**: HP 0 또는 1시간 경과 시 자동 종료
+5. **정산**: 승자 풀이 베팅 비율에 따라 보상 분배
 
 ## Chainlink Data Feeds
 
