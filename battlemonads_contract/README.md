@@ -84,6 +84,12 @@ forge verify-contract <CONTRACT_ADDRESS> PriceFeeds \
   --etherscan-api-key $ETHERSCAN_API_KEY
 ```
 
+## 배포된 컨트랙트
+
+### Sepolia 테스트넷
+- **PriceFeeds Contract**: [`0x2DE6e6e7f8CA732137775DF4Cff65571D47Db3Fd`](https://sepolia.etherscan.io/address/0x2DE6e6e7f8CA732137775DF4Cff65571D47Db3Fd#code)
+- **배포 트랜잭션**: [Etherscan에서 확인](https://sepolia.etherscan.io/address/0x2DE6e6e7f8CA732137775DF4Cff65571D47Db3Fd#code)
+
 ## Chainlink Data Feeds
 
 현재 연동된 가격 피드 (Sepolia 테스트넷):
