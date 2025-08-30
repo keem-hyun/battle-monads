@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from './ui/Card';
 import { Badge } from './ui/Badge';
 
@@ -17,6 +17,12 @@ interface PriceTickerProps {
 }
 
 export const PriceTicker: React.FC<PriceTickerProps> = ({ prices, lastUpdate }) => {
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('en-US', { 
       hour: '2-digit', 
@@ -32,7 +38,7 @@ export const PriceTicker: React.FC<PriceTickerProps> = ({ prices, lastUpdate }) 
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 bg-[#4ADE80] rounded-full animate-pulse" />
           <span className="text-xs text-[#8B9299]">
-            Updated: {formatTime(lastUpdate)}
+            {mounted ? `Updated: ${formatTime(lastUpdate)}` : 'Loading...'}
           </span>
         </div>
       </div>

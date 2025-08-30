@@ -11,9 +11,9 @@ import { Button } from './components/ui/Button';
 import { Badge } from './components/ui/Badge';
 
 export default function Home() {
-  const [walletAddress, setWalletAddress] = useState<string>('');
   const [userBalance, setUserBalance] = useState(10000);
   const [activeBattle, setActiveBattle] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState(new Date());
   const [userMonsters, setUserMonsters] = useState([
     {
       id: '0x123456',
@@ -83,9 +83,13 @@ export default function Home() {
     btc: 0,
   });
   
-  const handleConnect = () => {
-    setWalletAddress('0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb');
-  };
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLastUpdate(new Date());
+    }, 5000); // Update every 5 seconds
+    
+    return () => clearInterval(interval);
+  }, []);
   
   const handlePlaceBet = (type: 'ETH' | 'BTC', amount: number) => {
     if (amount <= userBalance) {
@@ -107,7 +111,7 @@ export default function Home() {
   
   return (
     <div className="min-h-screen bg-[#121619]">
-      <Header walletAddress={walletAddress} onConnect={handleConnect} />
+      <Header />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-8">
@@ -116,7 +120,7 @@ export default function Home() {
               ⚔️ Battle Monads ⚔️
             </h2>
             <p className="text-[#8B9299]">
-              Real-time price-based monster battles powered by Chainlink Data Feeds
+              Real-time price-based monster battles powered by Chainlink Data Feeds on Monad
             </p>
           </div>
           
@@ -126,7 +130,7 @@ export default function Home() {
               
               <div className="grid lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
-                  <PriceTicker prices={priceData} lastUpdate={new Date()} />
+                  <PriceTicker prices={priceData} lastUpdate={lastUpdate} />
                 </div>
                 <div>
                   <BettingPanel
@@ -170,7 +174,7 @@ export default function Home() {
                 </div>
               </div>
               
-              <PriceTicker prices={priceData} lastUpdate={new Date()} />
+              <PriceTicker prices={priceData} lastUpdate={lastUpdate} />
             </div>
           )}
           
