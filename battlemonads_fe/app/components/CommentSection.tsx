@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useSupabase } from '../providers/SupabaseProvider';
 import { useAccount } from 'wagmi';
 import { Card } from './ui/Card';
@@ -44,7 +45,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ battleId }) => {
     const loadUserProfiles = async () => {
       if (!Array.isArray(comments) || comments.length === 0) return;
 
-      const uniqueUsers = [...new Set(comments.map(comment => comment?.user).filter(Boolean))];
+      const uniqueUsers = [...new Set(comments.map((comment: { user?: string }) => comment?.user).filter(Boolean))];
       const profiles: Record<string, { username?: string; avatar_url?: string }> = {};
 
       await Promise.all(
@@ -116,7 +117,14 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ battleId }) => {
   console.log('Comments data:', comments, 'Type:', typeof comments);
   
   // comments가 배열이면 객체 형태의 댓글들을 처리하고 최신순 정렬
-  let commentList: any[] = [];
+  let commentList: Array<{
+    id: string;
+    user: string;
+    content: string;
+    timestamp: bigint;
+    isAttack: boolean;
+    attackTarget: number;
+  }> = [];
   if (Array.isArray(comments)) {
     commentList = comments
       .filter(comment => comment && typeof comment === 'object' && comment.id)
@@ -189,9 +197,9 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ battleId }) => {
             <p className="text-[#8B9299]">No comments yet. Be the first to comment!</p>
           </div>
         ) : (
-          commentList.map((comment, index) => {
+          commentList.map((comment) => {
             // 객체 형태로 직접 접근
-            const { id, battleId, user, content, timestamp, isAttack, attackTarget } = comment;
+            const { id, user, content, timestamp, isAttack, attackTarget } = comment;
             const userProfile = userProfiles[user] || {};
             
             return (
@@ -200,9 +208,11 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ battleId }) => {
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
                       {userProfile.avatar_url ? (
-                        <img 
+                        <Image 
                           src={userProfile.avatar_url} 
                           alt={userProfile.username || 'User'} 
+                          width={32}
+                          height={32}
                           className="w-8 h-8 rounded-full"
                         />
                       ) : (
@@ -253,7 +263,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ battleId }) => {
       
       <div className="mt-6 pt-4 border-t border-[#2A3238]">
         <div className="flex justify-between items-center text-sm text-[#8B9299]">
-          <span>💡 Include "attack" in your comment to damage opponent (-1 HP)</span>
+          <span>💡 Include &quot;attack&quot; in your comment to damage opponent (-1 HP)</span>
           <span>⚡ Comments update in real-time</span>
         </div>
       </div>

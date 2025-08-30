@@ -33,10 +33,10 @@ export const BattleArena: React.FC<BattleArenaProps> = ({ battleId }) => {
   }
 
   const [
-    id,
+    ,  // id (unused)
     ethMonsterId,
     btcMonsterId,
-    startTime,
+    ,  // startTime (unused)
     endTime,
     isActive,
     isSettled,
@@ -50,13 +50,6 @@ export const BattleArena: React.FC<BattleArenaProps> = ({ battleId }) => {
   const totalPool = ethBettingPool + btcBettingPool;
   const ethOdds = totalPool > 0 ? (btcBettingPool / totalPool * 100) : 50;
   const btcOdds = totalPool > 0 ? (ethBettingPool / totalPool * 100) : 50;
-  
-  const weatherEmoji = {
-    'SUNNY': '☀️',
-    'RAINY': '🌧️',
-    'CLOUDY': '☁️',
-    'SNOWY': '❄️',
-  };
   
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">

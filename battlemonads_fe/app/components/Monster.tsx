@@ -14,10 +14,9 @@ interface MonsterProps {
 
 export const Monster: React.FC<MonsterProps> = ({
   monsterId,
-  battleId,
   isInBattle = false,
 }) => {
-  const { useMonster, formatMonAmount, MonsterType } = useBattleMonads();
+  const { useMonster, MonsterType } = useBattleMonads();
   const { data: monster, isLoading } = useMonster(monsterId);
 
   if (isLoading || !monster) {

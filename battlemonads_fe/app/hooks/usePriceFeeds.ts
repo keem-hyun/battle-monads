@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { usePublicClient } from 'wagmi';
 import { PRICE_FEEDS_ABI, PRICE_FEEDS_ADDRESS } from '../lib/contracts/PriceFeeds';
 
@@ -18,8 +18,8 @@ export const usePriceFeeds = () => {
   const [error, setError] = useState<string | null>(null);
   const publicClient = usePublicClient();
 
-  const fetchPrices = async () => {
-    if (!publicClient || PRICE_FEEDS_ADDRESS === '0x0000000000000000000000000000000000000000') {
+  const fetchPrices = useCallback(async () => {
+    if (!publicClient) {
       // 컨트랙트가 배포되지 않은 경우 mock 데이터 사용
       setPrices([
         {
@@ -111,7 +111,7 @@ export const usePriceFeeds = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [publicClient]);
 
   useEffect(() => {
     fetchPrices();
@@ -119,7 +119,7 @@ export const usePriceFeeds = () => {
     // 5초마다 가격 업데이트
     const interval = setInterval(fetchPrices, 5000);
     return () => clearInterval(interval);
-  }, [publicClient]);
+  }, [fetchPrices]);
 
   return { prices, loading, error, refetch: fetchPrices };
 };

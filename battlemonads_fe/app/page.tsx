@@ -10,11 +10,10 @@ import { BettingPanel } from './components/BettingPanel';
 import { PriceTicker } from './components/PriceTicker';
 import { CommentSection } from './components/CommentSection';
 import { Card } from './components/ui/Card';
-import { Button } from './components/ui/Button';
 
 export default function Home() {
   const { address } = useAccount();
-  const { prices, loading: pricesLoading } = usePriceFeeds();
+  const { prices } = usePriceFeeds();
   const { useBattle } = useBattleMonads();
   
   // 현재는 battleId 1번을 고정으로 사용 (실제로는 활성 배틀 목록에서 선택)

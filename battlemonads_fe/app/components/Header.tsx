@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useAccount, useConnect, useDisconnect, useBalance, useChainId, useSwitchChain } from 'wagmi';
 import { metaMask } from 'wagmi/connectors';
 import { formatEther } from 'viem';
@@ -17,7 +18,7 @@ export const Header: React.FC = () => {
   const { data: balance } = useBalance({ address });
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
-  const { supabase, user, loading, linkWalletAddress } = useSupabase();
+  const { supabase, user, linkWalletAddress } = useSupabase();
 
   useEffect(() => {
     setMounted(true);
@@ -113,9 +114,11 @@ export const Header: React.FC = () => {
               <div className="flex items-center gap-2">
                 <div className="bg-[#121619] rounded-lg px-3 py-2">
                   <div className="flex items-center gap-2">
-                    <img 
+                    <Image 
                       src={user.user_metadata?.avatar_url || ''} 
                       alt="Profile" 
+                      width={32}
+                      height={32}
                       className="w-8 h-8 rounded-full"
                     />
                     <div>
