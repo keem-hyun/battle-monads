@@ -5,6 +5,7 @@ import { Card } from './ui/Card';
 import { Badge } from './ui/Badge';
 import { ProgressBar } from './ui/ProgressBar';
 import { useBattleMonads } from '../hooks/useBattleMonads';
+import { usePriceFeeds } from '../hooks/usePriceFeeds';
 
 interface MonsterProps {
   monsterId: number;
@@ -18,6 +19,7 @@ export const Monster: React.FC<MonsterProps> = ({
 }) => {
   const { useMonster, MonsterType } = useBattleMonads();
   const { data: monster, isLoading } = useMonster(monsterId);
+  const { prices } = usePriceFeeds();
 
   if (isLoading || !monster) {
     return (
@@ -35,10 +37,13 @@ export const Monster: React.FC<MonsterProps> = ({
 
   const type = monsterType === MonsterType.ETH ? 'ETH' : 'BTC';
   const birthPriceUsd = Number(birthPrice) / 1e8; // Chainlink price feeds have 8 decimals
-  
-  // 현재 가격은 실시간 price feed에서 가져와야 함 (임시로 birth price 사용)
-  const currentPrice = birthPriceUsd;
-  const priceChange = 0; // 실제 구현에서는 현재 가격과 birth price 비교
+
+  // Get current price from real-time price feeds
+  const currentPriceData = prices.find(p => p.symbol === type);
+  const currentPrice = currentPriceData?.price || birthPriceUsd;
+
+  // Calculate price change between birth and current price
+  const priceChange = currentPriceData ? ((currentPrice - birthPriceUsd) / birthPriceUsd) * 100 : 0;
   const isPositive = priceChange >= 0;
   
   const monsterEmoji = type === 'ETH' ? '🦄' : '🦁';
@@ -91,12 +96,12 @@ export const Monster: React.FC<MonsterProps> = ({
         </div>
         
         <div className="bg-[#121619] rounded-lg p-3">
-          <p className="text-xs text-[#8B9299] mb-1">Price Change</p>
+          <p className="text-xs text-[#8B9299] mb-1">Price Change (vs Birth)</p>
           <p className={`text-xl font-bold ${isPositive ? 'text-[#4ADE80]' : 'text-[#F87171]'}`}>
             {isPositive ? '+' : ''}{priceChange.toFixed(2)}%
           </p>
           <p className="text-xs text-[#8B9299] mt-1">
-            HP Recovery: {isPositive ? '+' : ''}{Math.floor(priceChange * (isPositive ? 10 : 5))} HP/5min
+            HP Recovery: {isPositive ? '+' : ''}{Math.floor(Math.abs(priceChange) * (isPositive ? 10 : 5))} HP/5min
           </p>
         </div>
         

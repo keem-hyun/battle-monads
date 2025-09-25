@@ -100,9 +100,20 @@ export const PriceTicker: React.FC<PriceTickerProps> = ({ prices, lastUpdate }) 
       </div>
       
       <div className="mt-4 p-3 bg-[#121619] rounded-lg">
-        <p className="text-xs text-[#8B9299]">
-          📊 Prices from Chainlink Data Feeds • Updates every 5 minutes
-        </p>
+        <div className="flex justify-between items-center">
+          <p className="text-xs text-[#8B9299]">
+            📊 Prices from Chainlink Data Feeds • Updates every 5 minutes
+          </p>
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 bg-[#4ADE80] rounded-full animate-pulse" />
+            <span className="text-xs text-[#4ADE80]">Live</span>
+          </div>
+        </div>
+        <div className="mt-2 pt-2 border-t border-[#2A3238]">
+          <p className="text-xs text-[#6B7280]">
+            💡 Price changes affect monster HP recovery rates in real-time
+          </p>
+        </div>
       </div>
     </Card>
   );
