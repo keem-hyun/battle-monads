@@ -6,7 +6,7 @@ import "../src/BattleMonads.sol";
 
 contract DeployBattleMonads is Script {
     // 이미 배포된 PriceFeeds 컨트랙트 주소
-    address constant PRICE_FEEDS_ADDRESS = 0x2DE6e6e7f8CA732137775DF4Cff65571D47Db3Fd;
+    address constant PRICE_FEEDS_ADDRESS = 0x4F1363813D0EA790C42080768e647DaD9f63bb5F;
     
     function run() external {
         vm.startBroadcast();

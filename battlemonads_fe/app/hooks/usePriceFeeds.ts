@@ -4,12 +4,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { usePublicClient } from 'wagmi';
 import { PRICE_FEEDS_ABI, PRICE_FEEDS_ADDRESS } from '../lib/contracts/PriceFeeds';
 
+// 5초마다 데이터를 받아서 가격 변동 저장
 export interface PriceData {
   symbol: 'ETH' | 'BTC';
-  price: number;
-  timestamp: number;
-  change24h: number;
-  change24hPercent: number;
+  price: number; // 실시간 가격
+  timestamp: number; // 데이터를 받아 온 시간 
+  change24h: number; // 5초 동안 변한 가격
+  change24hPercent: number; // 5초 동안 변한 가격 퍼센트 
 }
 
 export const usePriceFeeds = () => {
@@ -20,6 +21,7 @@ export const usePriceFeeds = () => {
 
   const fetchPrices = useCallback(async () => {
     if (!publicClient) {
+      console.log('⚠️ PublicClient not available, using mock data');
       // 컨트랙트가 배포되지 않은 경우 mock 데이터 사용
       setPrices([
         {
@@ -41,18 +43,20 @@ export const usePriceFeeds = () => {
       return;
     }
 
+    console.log('🔗 PublicClient available, fetching real price data...');
+
     try {
       setLoading(true);
 
-      // ETH 가격 가져오기
+      // ETH, BTC 가격 가져오기
       const [ethPriceResult, btcPriceResult] = await Promise.all([
         publicClient.readContract({
-          address: PRICE_FEEDS_ADDRESS as `0x${string}`,
+          address: PRICE_FEEDS_ADDRESS,
           abi: PRICE_FEEDS_ABI,
           functionName: 'getETHPriceWithTimestamp',
         }),
         publicClient.readContract({
-          address: PRICE_FEEDS_ADDRESS as `0x${string}`,
+          address: PRICE_FEEDS_ADDRESS,
           abi: PRICE_FEEDS_ABI,
           functionName: 'getBTCPriceWithTimestamp',
         }),
@@ -65,15 +69,24 @@ export const usePriceFeeds = () => {
       const ethPriceFormatted = Number(ethPrice) / 1e8;
       const btcPriceFormatted = Number(btcPrice) / 1e8;
 
-      // 이전 가격과 비교하여 변화량 계산 (임시로 랜덤 값 사용)
-      const ethChange = Math.random() * 200 - 100; // -100 ~ +100
-      const btcChange = Math.random() * 2000 - 1000; // -1000 ~ +1000
+      console.log('📈 Raw prices from Chainlink:', { ethPrice: ethPrice.toString(), btcPrice: btcPrice.toString() });
+      console.log('💰 Formatted prices:', { eth: ethPriceFormatted, btc: btcPriceFormatted });
 
-      setPrices([
-        {
+      // 이전 가격과 비교하여 변화량 계산 (임시로 랜덤 값 사용) => 실시간 데이터로 변화량 가져오도록 수정
+      //const ethChange = Math.random() * 200 - 100; // -100 ~ +100
+      //const btcChange = Math.random() * 2000 - 1000; // -1000 ~ +1000
+
+      setPrices( prev => {
+        const prevEth = prev.find( p => p.symbol === 'ETH')?.price ?? ethPriceFormatted;
+        const prevBTC = prev.find( p => p.symbol === 'BTC')?.price ?? btcPriceFormatted;
+
+        const ethChange = ethPriceFormatted - prevEth;
+        const btcChange = btcPriceFormatted - prevBTC;
+        return [
+          {
           symbol: 'ETH',
-          price: ethPriceFormatted,
-          timestamp: Number(ethTimestamp) * 1000,
+          price: ethPriceFormatted, // 체인링크를 통해 가져온 가격 
+          timestamp: Number(ethTimestamp) * 1000,  // 데이터 가져온 시간
           change24h: ethChange,
           change24hPercent: (ethChange / ethPriceFormatted) * 100,
         },
@@ -84,11 +97,12 @@ export const usePriceFeeds = () => {
           change24h: btcChange,
           change24hPercent: (btcChange / btcPriceFormatted) * 100,
         },
-      ]);
+        ]
+      });
 
       setError(null);
     } catch (err) {
-      console.error('Failed to fetch prices:', err);
+      console.error('❌ Failed to fetch prices from contract:', err);
       setError('Failed to fetch prices from contract');
       
       // 에러 시 mock 데이터 사용

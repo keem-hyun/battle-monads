@@ -72,10 +72,24 @@ export function useBattleMonads() {
   }
 
   // Write functions
+  const createBattle = async () => {
+    try {
+      return writeContract({
+        address: BATTLE_MONADS_ADDRESS,
+        abi: BATTLE_MONADS_ABI,
+        functionName: 'createBattle',
+        args: []
+      })
+    } catch (error) {
+      console.error('Create battle error:', error)
+      throw error
+    }
+  }
+
   const bet = async (battleId: number, side: MonsterType, amount: string) => {
     try {
       const value = parseEther(amount)
-      
+
       return writeContract({
         address: BATTLE_MONADS_ADDRESS,
         abi: BATTLE_MONADS_ABI,
@@ -154,17 +168,19 @@ export function useBattleMonads() {
     useBattleComments,
     useUserBets,
     useCanUserComment,
-    
+
     // Write functions
+    createBattle,
     bet,
     addComment,
     claimReward,
     endBattle,
-    
+    writeContract, // 원래 writeContract도 노출
+
     // Transaction status
     useTransactionStatus,
     isPending,
-    
+
     // Helpers
     formatMonAmount,
     parseMonAmount,

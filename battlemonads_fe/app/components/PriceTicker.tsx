@@ -3,18 +3,22 @@
 import React, { useState, useEffect } from 'react';
 import { Card } from './ui/Card';
 import { Badge } from './ui/Badge';
+import { PriceData } from '../hooks/usePriceFeeds';
 
-interface PriceData {
+// 중복된 PriceData 인터페이스 제거 후, import해서 사용하도록 수정
+/*interface PriceData {
   symbol: 'ETH' | 'BTC';
   price: number;
   change24h: number;
   change24hPercent: number;
 }
+  */
 
 interface PriceTickerProps {
   prices: PriceData[];
   lastUpdate: Date;
 }
+
 
 export const PriceTicker: React.FC<PriceTickerProps> = ({ prices, lastUpdate }) => {
   const [mounted, setMounted] = useState(false);

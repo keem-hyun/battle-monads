@@ -87,8 +87,8 @@ export const BattleArena: React.FC<BattleArenaProps> = ({ battleId }) => {
   const ethBettingPool = Number(formatMonAmount(ethPool));
   const btcBettingPool = Number(formatMonAmount(btcPool));
   const totalPool = ethBettingPool + btcBettingPool;
-  const ethOdds = totalPool > 0 ? (btcBettingPool / totalPool * 100) : 50;
-  const btcOdds = totalPool > 0 ? (ethBettingPool / totalPool * 100) : 50;
+  const ethOdds = totalPool > 0 ? (ethBettingPool / totalPool * 100) : 50;
+  const btcOdds = totalPool > 0 ? (btcBettingPool / totalPool * 100) : 50;
   
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">
