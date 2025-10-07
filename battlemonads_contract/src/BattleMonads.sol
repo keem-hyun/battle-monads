@@ -14,7 +14,8 @@ contract BattleMonads {
     uint256 public constant BATTLE_DURATION = 12 hours; // 12시간
     uint256 public constant DEFAULT_HP = 100;
 
-    enum MonsterType { ETH, BTC }
+    enum MonsterType { ETH, BTC, SUI, SOL } // sui, solana 추가
+    enum BattleState { Pending, Active, Ended }
 
     struct Monster {
         uint256 id;
@@ -30,18 +31,25 @@ contract BattleMonads {
         uint256 battleId;
         uint256 ethMonsterId;
         uint256 btcMonsterId;
-        uint256 startTime;
+        uint256 createTime;      // 배틀이 생성된 시간
         uint256 endTime;
-        bool isActive;
+        uint256 activationTime;  // 배틀이 활성화될 시간
         bool isSettled;
         MonsterType winner;
+
         uint256 ethBettingPool;
         uint256 btcBettingPool;
         mapping(address => uint256) ethBets;
         mapping(address => uint256) btcBets;
         mapping(address => bool) claimed;
         mapping(address => bool) canComment; // 베팅한 사용자만 댓글 가능
+
+        BattleState state; // Pending, Active, Ended
     }
+
+    // 활성화되기 전 대기 중인 배틀은 1개만 존재 
+    uint256 public latestPendingId;
+    uint256[] private _allIds;
 
     struct Comment {
         uint256 id;
@@ -54,7 +62,8 @@ contract BattleMonads {
     }
 
     IPriceFeeds public priceFeeds;
-    
+
+    address public admin;
     uint256 public nextMonsterId = 1;
     uint256 public nextBattleId = 1;
     uint256 public nextCommentId = 1;
@@ -63,9 +72,12 @@ contract BattleMonads {
     mapping(uint256 => Battle) private battles;
     mapping(uint256 => Comment[]) public battleComments;
     
-    address public admin;
+// 공격 크레딧 사용량 추적: 배틀별 / 유저별 / 타겟별
+    mapping(uint256 => mapping(address => uint256)) public usedAttacksAgainstETH;
+    mapping(uint256 => mapping(address => uint256)) public usedAttacksAgainstBTC;
 
     event BattleCreated(uint256 indexed battleId, uint256 ethMonsterId, uint256 btcMonsterId, uint256 ethBirthPrice, uint256 btcBirthPrice);
+    event BattleActivated(uint256 indexed battleId, uint256 activatedAt);
     event BetPlaced(uint256 indexed battleId, address indexed user, MonsterType side, uint256 amount);
     event CommentAdded(uint256 indexed battleId, address indexed user, string content, bool isAttack, MonsterType attackTarget);
     event MonsterAttacked(uint256 indexed battleId, MonsterType target, uint256 damage, uint256 newHP);
@@ -84,7 +96,7 @@ contract BattleMonads {
     }
 
     modifier onlyActiveBattle(uint256 battleId) {
-        require(battles[battleId].isActive, "Battle not active");
+        require(battles[battleId].state == BattleState.Active, "Battle not active");
         _;
     }
 
@@ -93,8 +105,25 @@ contract BattleMonads {
         _;
     }
 
+    /// @notice 온체인 랜덤성을 이용한 활성화 지연 시간 생성 (30초 ~ 5분)
+    function generateActivationDelay() private view returns (uint256) {
+        uint256 randomSeed = uint256(keccak256(abi.encodePacked(
+            block.timestamp,
+            block.prevrandao,
+            msg.sender,
+            nextBattleId
+        )));
+
+        uint256 minDelay = 30; // 30초
+        uint256 maxDelay = 300; // 5분
+
+        return minDelay + (randomSeed % (maxDelay - minDelay + 1));
+    }
+
     /// @notice 배틀 생성 (ETH vs BTC 몬스터 자동 생성 + 현재 가격 저장)
-    function createBattle() external onlyAdmin returns (uint256 battleId) {
+    function _createPendingBattle() internal returns (uint256 battleId) {
+        require(latestPendingId == 0, "Pending exists"); // 단 1개만
+        
         // 현재 가격 가져오기
         int256 ethPrice = priceFeeds.getETHPrice();
         int256 btcPrice = priceFeeds.getBTCPrice();
@@ -125,17 +154,69 @@ contract BattleMonads {
             exists: true
         });
 
+        // 활성화 지연 시간 생성
+        uint256 activationDelay = generateActivationDelay();
+
         // 배틀 생성
         battleId = nextBattleId++;
         Battle storage battle = battles[battleId];
         battle.battleId = battleId;
         battle.ethMonsterId = ethMonsterId;
         battle.btcMonsterId = btcMonsterId;
-        battle.startTime = block.timestamp;
-        battle.endTime = block.timestamp + BATTLE_DURATION;
-        battle.isActive = true;
+        battle.createTime = block.timestamp;
+        battle.endTime = 0;
+        battle.activationTime = block.timestamp + activationDelay;
+        battle.isSettled = false;
+        battle.state = BattleState.Pending;
+
+        latestPendingId = battleId;
+        _allIds.push(battleId);
 
         emit BattleCreated(battleId, ethMonsterId, btcMonsterId, uint256(ethPrice), uint256(btcPrice));
+    }
+
+    /// @notice 배틀 생성 (외부 호출용)
+    function createPendingBattle() external returns (uint256) {
+        return _createPendingBattle();
+    }
+
+    /// @notice 배틀 체인 시동 (초기 1번만)
+    function startChain() external onlyAdmin returns (uint256) {
+        require(nextBattleId == 1 || latestPendingId == 0, "Already started");
+        return _createPendingBattle();
+    }
+
+    
+    /// @notice 배틀 활성화 시간 확인 및 자동 활성화 (+ 다음 대기 배틀 자동 생성)
+    function checkAndActivateBattle(uint256 battleId) external { // CHANGED
+        require(battleId > 0 && battleId < nextBattleId, "Invalid battle ID");
+        Battle storage b = battles[battleId];
+        require(b.state == BattleState.Pending, "Not pending");
+        require(block.timestamp >= b.activationTime, "Activation time not reached");
+
+        // 활성화
+        b.state = BattleState.Active;
+        // 중요: endTime을 활성화 기준으로
+        b.endTime = b.activationTime + BATTLE_DURATION;
+
+        // 최신 대기 배틀은 이제 활성화되었으니 비움
+        if (latestPendingId == battleId) {
+            latestPendingId = 0;
+        }
+
+        emit BattleActivated(battleId, block.timestamp);
+
+        // 연쇄: 즉시 다음 대기 배틀 1개 생성
+        _createPendingBattle();
+    }
+
+
+    /// @notice 배틀의 활성화 준비 상태 확인
+    function isBattleReadyToActivate(uint256 battleId) external view returns (bool) {
+        if (battleId == 0 || battleId >= nextBattleId) return false;
+        Battle storage b = battles[battleId];
+        if (b.state != BattleState.Pending) return false; // CHANGED: state 기반
+        return block.timestamp >= b.activationTime;
     }
 
     /// @notice 베팅하기 (0.01 ~ 1 MON)
@@ -270,14 +351,14 @@ contract BattleMonads {
     /// @notice 배틀 종료 (시간 만료 또는 HP 0)
     function endBattle(uint256 battleId) external {
         Battle storage battle = battles[battleId];
-        require(battle.isActive, "Battle not active");
+        require(battle.state == BattleState.Active, "Battle not active");
         require(
-            block.timestamp >= battle.endTime || 
-            monsters[battle.ethMonsterId].currentHP == 0 || 
+            block.timestamp >= battle.endTime ||
+            monsters[battle.ethMonsterId].currentHP == 0 ||
             monsters[battle.btcMonsterId].currentHP == 0,
             "Battle still ongoing"
         );
-        
+
         _endBattle(battleId);
     }
 
@@ -285,7 +366,7 @@ contract BattleMonads {
         Battle storage battle = battles[battleId];
         Monster storage ethMonster = monsters[battle.ethMonsterId];
         Monster storage btcMonster = monsters[battle.btcMonsterId];
-        
+
         // 승자 결정
         if (ethMonster.currentHP > btcMonster.currentHP) {
             battle.winner = MonsterType.ETH;
@@ -299,10 +380,10 @@ contract BattleMonads {
                 battle.winner = MonsterType.BTC;
             }
         }
-        
-        battle.isActive = false;
+
+        battle.state = BattleState.Ended;
         emit BattleEnded(battleId, battle.winner, ethMonster.currentHP, btcMonster.currentHP);
-        
+
         // 자동 정산
         _settleBattle(battleId);
     }
@@ -350,9 +431,10 @@ contract BattleMonads {
         uint256 id,
         uint256 ethMonsterId,
         uint256 btcMonsterId,
-        uint256 startTime,
+        uint256 createTime,
         uint256 endTime,
-        bool isActive,
+        uint256 activationTime,
+        BattleState state,
         bool isSettled,
         MonsterType winner,
         uint256 ethPool,
@@ -363,9 +445,10 @@ contract BattleMonads {
             battle.battleId,
             battle.ethMonsterId,
             battle.btcMonsterId,
-            battle.startTime,
+            battle.createTime,
             battle.endTime,
-            battle.isActive,
+            battle.activationTime,
+            battle.state,
             battle.isSettled,
             battle.winner,
             battle.ethBettingPool,
@@ -385,4 +468,181 @@ contract BattleMonads {
     function canUserComment(uint256 battleId, address user) external view returns (bool) {
         return battles[battleId].canComment[user];
     }
+
+    /// @notice 배틀 총 개수 조회
+    function getBattleCount() external view returns (uint256) {
+        return nextBattleId - 1;
+    }
+
+    /// @notice 특정 상태의 배틀 목록 조회 (페이지네이션)
+    function getBattlesByStatus(BattleState targetState, uint256 offset, uint256 limit)
+        external
+        view
+        returns (
+            uint256[] memory battleIds,
+            uint256[] memory ethMonsterIds,
+            uint256[] memory btcMonsterIds,
+            uint256 totalCount
+        )
+    {
+        uint256 battleCount = nextBattleId - 1;
+        uint256 matchingCount;
+
+        // Count matching battles
+        for (uint256 i = 1; i <= battleCount; i++) {
+            if (battles[i].state == targetState) matchingCount++;
+        }
+
+        uint256 size = limit;
+        if (offset + limit > matchingCount) {
+            size = matchingCount > offset ? matchingCount - offset : 0;
+        }
+
+        battleIds = new uint256[](size);
+        ethMonsterIds = new uint256[](size);
+        btcMonsterIds = new uint256[](size);
+
+        uint256 idx;
+        uint256 count;
+
+        for (uint256 i = 1; i <= battleCount && idx < size; i++) {
+            if (battles[i].state == targetState) {
+                if (count >= offset) {
+                    battleIds[idx] = battles[i].battleId;
+                    ethMonsterIds[idx] = battles[i].ethMonsterId;
+                    btcMonsterIds[idx] = battles[i].btcMonsterId;
+                    idx++;
+                }
+                count++;
+            }
+        }
+
+        totalCount = matchingCount;
+    }
+
+    /// @notice 모든 배틀 목록 조회 (최신순, 제한된 개수)
+    function getRecentBattles(uint256 limit)
+        external
+        view
+        returns (
+            uint256[] memory battleIds,
+            uint256[] memory ethMonsterIds,
+            uint256[] memory btcMonsterIds,
+            uint256[] memory createTimes,
+            uint256[] memory endTimes,
+            uint256[] memory activationTimes,
+            BattleState[] memory states,
+            bool[] memory isSettledList,
+            MonsterType[] memory winners,
+            uint256[] memory ethPools,
+            uint256[] memory btcPools
+        )
+    {
+        uint256 battleCount = nextBattleId - 1;
+        uint256 returnSize = limit > battleCount ? battleCount : limit;
+
+        battleIds = new uint256[](returnSize);
+        ethMonsterIds = new uint256[](returnSize);
+        btcMonsterIds = new uint256[](returnSize);
+        createTimes = new uint256[](returnSize);
+        endTimes = new uint256[](returnSize);
+        activationTimes = new uint256[](returnSize);
+        states = new BattleState[](returnSize);
+        isSettledList = new bool[](returnSize);
+        winners = new MonsterType[](returnSize);
+        ethPools = new uint256[](returnSize);
+        btcPools = new uint256[](returnSize);
+
+        // 최신 배틀부터 역순으로 조회
+        for (uint256 i = 0; i < returnSize; i++) {
+            uint256 battleId = battleCount - i;
+            Battle storage battle = battles[battleId];
+
+            battleIds[i] = battle.battleId;
+            ethMonsterIds[i] = battle.ethMonsterId;
+            btcMonsterIds[i] = battle.btcMonsterId;
+            createTimes[i] = battle.createTime;
+            endTimes[i] = battle.endTime;
+            activationTimes[i] = battle.activationTime;
+            states[i] = battle.state;
+            isSettledList[i] = battle.isSettled;
+            winners[i] = battle.winner;
+            ethPools[i] = battle.ethBettingPool;
+            btcPools[i] = battle.btcBettingPool;
+        }
+    }
+
+// NEW: 메인 페이지에서 단 하나의 대기 배틀 정보만 쓰기 좋게 제공
+    function getLatestPendingInfo() external view returns (
+        bool exists,
+        uint256 battleId,
+        uint256 activationTime
+    ) {
+        if (latestPendingId == 0) return (false, 0, 0);
+        Battle storage b = battles[latestPendingId];
+        // safety: pending만 노출
+        if (b.state != BattleState.Pending) return (false, 0, 0);
+        return (true, latestPendingId, b.activationTime);
+    }
+
+    /// @notice 활성화되거나 종료된 배틀 목록만 조회 (배틀 히스토리용, 최신순)
+    function getActiveAndEndedBattles(uint256 limit)
+        external
+        view
+        returns (
+            uint256[] memory battleIds,
+            uint256[] memory ethMonsterIds,
+            uint256[] memory btcMonsterIds,
+            uint256[] memory createTimes,
+            uint256[] memory endTimes,
+            BattleState[] memory states,
+            bool[] memory isSettledList,
+            MonsterType[] memory winners,
+            uint256[] memory ethPools,
+            uint256[] memory btcPools
+        )
+    {
+        // 먼저 Active/Ended 배틀 개수 세기
+        uint256 battleCount = nextBattleId - 1;
+        uint256 matchingCount = 0;
+
+        for (uint256 i = 1; i <= battleCount; i++) {
+            if (battles[i].state == BattleState.Active || battles[i].state == BattleState.Ended) {
+                matchingCount++;
+            }
+        }
+
+        uint256 returnSize = limit > matchingCount ? matchingCount : limit;
+
+        battleIds = new uint256[](returnSize);
+        ethMonsterIds = new uint256[](returnSize);
+        btcMonsterIds = new uint256[](returnSize);
+        createTimes = new uint256[](returnSize);
+        endTimes = new uint256[](returnSize);
+        states = new BattleState[](returnSize);
+        isSettledList = new bool[](returnSize);
+        winners = new MonsterType[](returnSize);
+        ethPools = new uint256[](returnSize);
+        btcPools = new uint256[](returnSize);
+
+        // 최신순으로 조회 (역순)
+        uint256 resultIndex = 0;
+        for (uint256 i = battleCount; i >= 1 && resultIndex < returnSize; i--) {
+            Battle storage battle = battles[i];
+            if (battle.state == BattleState.Active || battle.state == BattleState.Ended) {
+                battleIds[resultIndex] = battle.battleId;
+                ethMonsterIds[resultIndex] = battle.ethMonsterId;
+                btcMonsterIds[resultIndex] = battle.btcMonsterId;
+                createTimes[resultIndex] = battle.createTime;
+                endTimes[resultIndex] = battle.endTime;
+                states[resultIndex] = battle.state;
+                isSettledList[resultIndex] = battle.isSettled;
+                winners[resultIndex] = battle.winner;
+                ethPools[resultIndex] = battle.ethBettingPool;
+                btcPools[resultIndex] = battle.btcBettingPool;
+                resultIndex++;
+            }
+        }
+    }
+
 }

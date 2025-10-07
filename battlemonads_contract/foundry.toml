@@ -5,6 +5,9 @@ libs = ["lib"]
 metadata = true
 metadata_hash = "none"  # disable ipfs
 use_literal_content = true # store source code in the json file directly
+via_ir = true
+optimizer = true
+optimizer_runs = 200
 
 [rpc_endpoints]
 sepolia = "${SEPOLIA_RPC_URL}"

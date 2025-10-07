@@ -38,6 +38,7 @@ export const config = createConfig({
     injected(),
   ],
   transports: {
-    [monadTestnet.id]: http(),
+    [monadTestnet.id]: http('https://testnet-rpc.monad.xyz'),
   },
+  ssr: true,
 });

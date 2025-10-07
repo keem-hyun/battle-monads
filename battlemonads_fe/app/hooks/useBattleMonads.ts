@@ -1,6 +1,6 @@
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { parseEther, formatEther } from 'viem'
-import { BATTLE_MONADS_ABI, BATTLE_MONADS_ADDRESS, MonsterType } from '../lib/contracts/BattleMonads'
+import { BATTLE_MONADS_ABI, BATTLE_MONADS_ADDRESS, MonsterType, BattleState } from '../lib/contracts/BattleMonads'
 
 export function useBattleMonads() {
   const { writeContract, data: hash, isPending } = useWriteContract()
@@ -71,13 +71,88 @@ export function useBattleMonads() {
     })
   }
 
+  const useBattleCount = () => {
+    return useReadContract({
+      address: BATTLE_MONADS_ADDRESS,
+      abi: BATTLE_MONADS_ABI,
+      functionName: 'getBattleCount',
+      args: [],
+      query: {
+        refetchInterval: 10000 // 10초마다 업데이트
+      }
+    })
+  }
+
+  const useBattlesByStatus = (targetState: BattleState, offset: number, limit: number) => {
+    return useReadContract({
+      address: BATTLE_MONADS_ADDRESS,
+      abi: BATTLE_MONADS_ABI,
+      functionName: 'getBattlesByStatus',
+      args: [targetState, BigInt(offset), BigInt(limit)],
+      query: {
+        enabled: offset >= 0 && limit > 0,
+        refetchInterval: 10000
+      }
+    })
+  }
+
+  const useRecentBattles = (limit: number) => {
+    return useReadContract({
+      address: BATTLE_MONADS_ADDRESS,
+      abi: BATTLE_MONADS_ABI,
+      functionName: 'getRecentBattles',
+      args: [BigInt(limit)],
+      query: {
+        enabled: limit > 0,
+        refetchInterval: 10000
+      }
+    })
+  }
+
+  const useLatestPendingInfo = () => {
+    return useReadContract({
+      address: BATTLE_MONADS_ADDRESS,
+      abi: BATTLE_MONADS_ABI,
+      functionName: 'getLatestPendingInfo',
+      args: [],
+      query: {
+        refetchInterval: 3000 // 3초마다 업데이트
+      }
+    })
+  }
+
+  const useActiveAndEndedBattles = (limit: number) => {
+    return useReadContract({
+      address: BATTLE_MONADS_ADDRESS,
+      abi: BATTLE_MONADS_ABI,
+      functionName: 'getActiveAndEndedBattles',
+      args: [BigInt(limit)],
+      query: {
+        enabled: limit > 0,
+        refetchInterval: 5000 // 5초마다 업데이트
+      }
+    })
+  }
+
+  const useLatestActiveBattle = () => {
+    return useReadContract({
+      address: BATTLE_MONADS_ADDRESS,
+      abi: BATTLE_MONADS_ABI,
+      functionName: 'getActiveAndEndedBattles',
+      args: [BigInt(1)], // 최신 1개만
+      query: {
+        refetchInterval: 3000 // 3초마다 업데이트
+      }
+    })
+  }
+
   // Write functions
   const createBattle = async () => {
     try {
       return writeContract({
         address: BATTLE_MONADS_ADDRESS,
         abi: BATTLE_MONADS_ABI,
-        functionName: 'createBattle',
+        functionName: 'createPendingBattle',
         args: []
       })
     } catch (error) {
@@ -168,6 +243,12 @@ export function useBattleMonads() {
     useBattleComments,
     useUserBets,
     useCanUserComment,
+    useBattleCount,
+    useBattlesByStatus,
+    useRecentBattles,
+    useLatestPendingInfo,
+    useActiveAndEndedBattles,
+    useLatestActiveBattle,
 
     // Write functions
     createBattle,
@@ -184,6 +265,7 @@ export function useBattleMonads() {
     // Helpers
     formatMonAmount,
     parseMonAmount,
-    MonsterType
+    MonsterType,
+    BattleState
   }
 }

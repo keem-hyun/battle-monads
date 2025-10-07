@@ -9,34 +9,58 @@ import { BattleArena } from './components/BattleArena';
 import { BettingPanel } from './components/BettingPanel';
 import { PriceTicker } from './components/PriceTicker';
 import { CommentSection } from './components/CommentSection';
-import { CreateMonsterModal } from './components/CreateMonsterModal';
+import { CreateMonsterModal, CreateBattleButton } from './components/CreateMonsterModal';
+import { BattleListModal } from './components/BattleListModal';
 import { Card } from './components/ui/Card';
 
 export default function Home() {
   const { address } = useAccount();
   const { prices } = usePriceFeeds();
-  const { useBattle } = useBattleMonads();
-  
-  // 현재는 battleId 1번을 고정으로 사용 (실제로는 활성 배틀 목록에서 선택)
-  const currentBattleId = 1;
-  const { data: battle } = useBattle(currentBattleId);
-  
+  const { useBattle, useLatestActiveBattle } = useBattleMonads();
+
+  const [currentBattleId, setCurrentBattleId] = useState<number>(1);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [mounted, setMounted] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBattleList, setShowBattleList] = useState(false);
-  
-  const activeBattle = battle && battle[5]; // isActive 필드
-  
+
+  // 최신 활성 배틀 가져오기
+  const { data: latestActiveBattleData } = useLatestActiveBattle();
+  const { data: battle } = useBattle(currentBattleId);
+
+  // state: 0 = Pending, 1 = Active, 2 = Ended
+  const battleState = battle ? Number(battle[6]) : null;
+  const activeBattle = battleState === 1;
+  const endedBattle = battleState === 2;
+  const showBattle = activeBattle || endedBattle;
+
   useEffect(() => {
     setMounted(true);
   }, []);
-  
+
+  // 최신 활성 배틀 초기 선택 (처음 로드 시에만)
+  useEffect(() => {
+    if (latestActiveBattleData && currentBattleId === 1) {
+      const [battleIds, , , , , states] = latestActiveBattleData;
+
+      if (battleIds.length > 0) {
+        const latestBattleId = Number(battleIds[0]);
+        const latestState = Number(states[0]);
+
+        // state가 1(Active)인 경우만 자동 선택 (초기 로드 시에만)
+        if (latestState === 1 && latestBattleId > 1) {
+          console.log('🎯 Initial battle selection:', latestBattleId);
+          setCurrentBattleId(latestBattleId);
+        }
+      }
+    }
+  }, [latestActiveBattleData, currentBattleId]);
+
   useEffect(() => {
     const interval = setInterval(() => {
       setLastUpdate(new Date());
     }, 5000); // Update every 5 seconds
-    
+
     return () => clearInterval(interval);
   }, []);
   
@@ -54,12 +78,7 @@ export default function Home() {
               Real-time price-based monster battles powered by Chainlink Data Feeds on Monad
             </p>
             <div className="flex justify-center gap-4">
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="bg-gradient-to-r from-[#5AD8CC] to-[#4ADE80] text-black font-bold px-6 py-2 rounded-lg hover:from-[#4ADE80] hover:to-[#5AD8CC] transition-all duration-300 transform hover:scale-105"
-              >
-                🎨 Create Monster
-              </button>
+              <CreateBattleButton onClick={() => setShowCreateModal(true)} />
               <button
                 onClick={() => setShowBattleList(true)}
                 className="bg-gradient-to-r from-[#8B5CF6] to-[#A78BFA] text-white font-bold px-6 py-2 rounded-lg hover:from-[#A78BFA] hover:to-[#8B5CF6] transition-all duration-300 transform hover:scale-105"
@@ -69,16 +88,34 @@ export default function Home() {
             </div>
           </div>
           
-          {activeBattle ? (
+          {showBattle ? (
             <>
               <BattleArena battleId={currentBattleId} />
-              
+
               <div className="grid lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
                   <PriceTicker prices={prices} lastUpdate={lastUpdate} />
                 </div>
                 <div>
-                  <BettingPanel battleId={currentBattleId} />
+                  {activeBattle ? (
+                    <BettingPanel battleId={currentBattleId} />
+                  ) : endedBattle ? (
+                    <Card className="bg-gradient-to-br from-[#8B5CF6]/20 to-[#A78BFA]/20 border-[#8B5CF6]/30">
+                      <div className="text-center">
+                        <div className="text-4xl mb-3">🏆</div>
+                        <h3 className="text-xl font-bold text-white mb-2">Battle Completed</h3>
+                        <p className="text-[#8B9299] text-sm mb-4">
+                          This battle has ended. Check the winner above!
+                        </p>
+                        <button
+                          onClick={() => setShowBattleList(true)}
+                          className="w-full bg-gradient-to-r from-[#8B5CF6] to-[#A78BFA] text-white font-bold px-4 py-2 rounded-lg hover:from-[#A78BFA] hover:to-[#8B5CF6] transition-all duration-300"
+                        >
+                          📋 View All Battles
+                        </button>
+                      </div>
+                    </Card>
+                  ) : null}
                 </div>
               </div>
             </>
@@ -96,12 +133,10 @@ export default function Home() {
                       Connected: {address.slice(0, 6)}...{address.slice(-4)}
                     </p>
                     <div className="flex justify-center">
-                      <button
+                      <CreateBattleButton
                         onClick={() => setShowCreateModal(true)}
-                        className="bg-gradient-to-r from-[#5AD8CC] to-[#4ADE80] text-black font-bold px-8 py-3 rounded-lg hover:from-[#4ADE80] hover:to-[#5AD8CC] transition-all duration-300 transform hover:scale-105"
-                      >
-                        🎨 Create Monster
-                      </button>
+                        className="px-8 py-3"
+                      />
                     </div>
                   </>
                 )}
@@ -111,7 +146,7 @@ export default function Home() {
             </div>
           )}
           
-          {activeBattle && (
+          {showBattle && (
             <CommentSection battleId={currentBattleId} />
           )}
           
@@ -144,6 +179,13 @@ export default function Home() {
       <CreateMonsterModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
+      />
+
+      <BattleListModal
+        isOpen={showBattleList}
+        onClose={() => setShowBattleList(false)}
+        onSelectBattle={setCurrentBattleId}
+        currentBattleId={currentBattleId}
       />
     </div>
   );

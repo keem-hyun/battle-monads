@@ -75,14 +75,18 @@ export const BattleArena: React.FC<BattleArenaProps> = ({ battleId }) => {
     ,  // id (unused)
     ethMonsterId,
     btcMonsterId,
-    ,  // startTime (unused)
+    ,  // createTime (unused)
     endTime,
-    isActive,
+    ,  // activationTime (unused)
+    state,
     isSettled,
     winner,
     ethPool,
     btcPool
   ] = battle;
+
+  const isActive = Number(state) === 1; // state === 1 (Active)
+  const isEnded = Number(state) === 2; // state === 2 (Ended)
 
   const ethBettingPool = Number(formatMonAmount(ethPool));
   const btcBettingPool = Number(formatMonAmount(btcPool));
@@ -94,16 +98,16 @@ export const BattleArena: React.FC<BattleArenaProps> = ({ battleId }) => {
     <div className="w-full max-w-7xl mx-auto space-y-6">
       <Card className="text-center">
         <div className="flex justify-between items-center mb-4">
-          <Badge variant={isActive ? "error" : "warning"} size="md">
-            {isActive ? "🔴 LIVE BATTLE" : isSettled ? "✅ BATTLE ENDED" : "🟡 BATTLE STARTING"}
+          <Badge variant={isActive ? "error" : isEnded ? "success" : "warning"} size="md">
+            {isActive ? "🔴 LIVE BATTLE" : isEnded ? "✅ BATTLE ENDED" : "🟡 BATTLE STARTING"}
           </Badge>
           <div className="text-sm text-[#B8BFC6]">Battle #{String(battleId).padStart(3, '0')}</div>
-          <Badge variant={isActive ? "error" : "info"} size="md" className="min-w-[140px] text-center">
+          <Badge variant={isActive ? "error" : isEnded ? "success" : "info"} size="md" className="min-w-[140px] text-center">
             {isActive ? (
               <span className="font-mono">
                 ⏰ {formatTime(Number(endTime))}
               </span>
-            ) : isSettled ? (
+            ) : isEnded ? (
               "✅ Settled"
             ) : (
               "🔜 Starting Soon"
@@ -120,7 +124,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({ battleId }) => {
           <Monster
             monsterId={Number(ethMonsterId)}
             battleId={battleId}
-            isInBattle={isActive}
+            isInBattle={isActive || isEnded}
           />
           <Card className="bg-[#627EEA]/10 border-[#627EEA]/30">
             <div className="text-center">
@@ -157,10 +161,13 @@ export const BattleArena: React.FC<BattleArenaProps> = ({ battleId }) => {
                   <p className="text-xs text-[#8B9299] mt-1">Time Remaining</p>
                 </div>
               )}
-              {isSettled && (
-                <p className="text-sm text-[#5AD8CC] mt-2">
-                  Winner: {winner === 0 ? 'ETH 🦄' : 'BTC 🦁'}
-                </p>
+              {(isEnded || isSettled) && (
+                <div className="mt-3 bg-gradient-to-r from-[#4ADE80]/20 to-[#5AD8CC]/20 rounded-lg p-3 border border-[#4ADE80]/30">
+                  <p className="text-xs text-[#8B9299] mb-1">Winner</p>
+                  <p className="text-xl font-bold text-[#4ADE80]">
+                    {winner === 0 ? '🦄 ETH Monster' : '🦁 BTC Monster'}
+                  </p>
+                </div>
               )}
             </div>
           </div>
@@ -170,7 +177,7 @@ export const BattleArena: React.FC<BattleArenaProps> = ({ battleId }) => {
           <Monster
             monsterId={Number(btcMonsterId)}
             battleId={battleId}
-            isInBattle={isActive}
+            isInBattle={isActive || isEnded}
           />
           <Card className="bg-[#F7931A]/10 border-[#F7931A]/30">
             <div className="text-center">
